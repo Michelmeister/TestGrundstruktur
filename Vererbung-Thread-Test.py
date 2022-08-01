@@ -83,8 +83,3 @@ for dev in devices:
 #device1.start()
 #device2.start()
 
-
-#if range(b) > 50:
- #   print('Jetzt wird die Batterie aufgeladen!')
-#else:
- #   print('Der SoC ist hoch genug')
