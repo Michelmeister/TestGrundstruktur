@@ -79,7 +79,7 @@ devices = [device1,device2,device3]
 for dev in devices:
     dev.start()
 
-
+print('DIES IST EIN PUSH TEST MIT GITHUB')
 #device1.start()
 #device2.start()
 
