@@ -5,7 +5,7 @@ from numpy import array
 from threading import Lock
 import sqlite3
 
-p = 13
+p = 12
 
 conSQ = sqlite3.connect('TestDatenbank')
 curSQ = conSQ.cursor()
