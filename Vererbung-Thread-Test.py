@@ -23,7 +23,6 @@ class DevicesTCP(Thread):
         self.name   = name
         self.IPadr  = IPadr
         self.port   = port
-
 class WRpv(DevicesTCP):
     def __init__(self,name,IPadr,port):
         super().__init__(name, IPadr,port)
@@ -37,7 +36,6 @@ class WRpv(DevicesTCP):
             print(self.name,'-> P =',self.get_P(),'kW')
             lock.release()
             time.sleep(2)
-
 class WRbat(DevicesTCP):
     def __init__(self,name,IPadr,port):
         super().__init__(name,IPadr,port)
@@ -51,7 +49,6 @@ class WRbat(DevicesTCP):
             print(self.name,'-> SoC =',self.get_SoC(),'%')
             lock.release()
             time.sleep(2)
-
 class Load(Thread):
     def __init__(self,name,IPadr,port):
         super().__init__()
