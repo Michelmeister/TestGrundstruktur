@@ -10,6 +10,7 @@ import devices.BATinverter.BATinverter as BAT
 PVinverter  = PV.WRpv('PV-Inverter','134.169.132.235','502')
 BATinverter = BAT.WRbat('BAT-Inverter','134.169.132.234','502')
 
+
 concurrentthreads = [PVinverter,BATinverter]
 for threads in concurrentthreads:
     threads.start()
