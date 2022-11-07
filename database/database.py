@@ -47,3 +47,6 @@ class Database(Thread):
             time.sleep(2)
             self.WRpv_write_Database()
             self.WRbat_write_Database()
+
+Database = Database('Datenbank')
+Database.run()
