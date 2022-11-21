@@ -13,8 +13,8 @@ class PVprofil(Thread):
         global P_pv
         global Timestamp_sim
 
-        csv_file = open('PartiallyCloudy_06bis18Uhr_2021Sept01.csv',newline='')
-        pv_profile = csv.DictReader(csv_file,delimiter=';')
+        csv_file = open('PV_2021-03-23_18.00.00_to_23.59.59_cloudy.csv',newline='')
+        pv_profile = csv.DictReader(csv_file,delimiter=',')
         for row in pv_profile:
             if row['P_TOTAL'] == '':
                 #time.sleep(1)
@@ -32,7 +32,7 @@ class Lastprofil(Thread):
 
     def run(self):
         global P_Last
-        csv_file = open('LP17_2010-06-23_04.56.00_to_2010-06-24_21.43.00_Mi.csv',newline='')
+        csv_file = open('LP17_2010-06-23_18.00.00_to_2010-06-23_23.59.59_Mi.csv',newline='')
         load_profile = csv.DictReader(csv_file,delimiter=',')
         for row in load_profile:
             P1 = float(row['P1'])
