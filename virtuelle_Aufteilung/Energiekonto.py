@@ -149,6 +149,7 @@ class Energiekonto(Thread):
                 for WE in Wohneinheiten:
                     WE.buchen()
 
+
                 P_bat_real = round(WE1.P_bat_v + WE2.P_bat_v + WE3.P_bat_v + WE4.P_bat_v + WE5.P_bat_v + WE6.P_bat_v + WE7.P_bat_v + WE8.P_bat_v + WE9.P_bat_v + WE10.P_bat_v
                                    + WE11.P_bat_v + WE12.P_bat_v + WE13.P_bat_v + WE14.P_bat_v + WE15.P_bat_v + WE16.P_bat_v + WE17.P_bat_v + WE18.P_bat_v + WE19.P_bat_v + WE20.P_bat_v
                                    + WE21.P_bat_v + WE22.P_bat_v + WE23.P_bat_v + WE24.P_bat_v,1)
