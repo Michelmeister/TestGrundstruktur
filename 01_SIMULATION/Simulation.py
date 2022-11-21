@@ -1,0 +1,197 @@
+from threading import Thread
+import time
+import csv
+import datetime
+import sqlite3
+
+
+class PV_dummy(Thread):
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        global P_pv
+        global Timestamp_sim
+
+        csv_file = open('PV_csv\PV_2021-03-23_18.00.00_to_23.59.59_cloudy.csv',newline='')
+        pv_profile = csv.DictReader(csv_file,delimiter=',')
+        for row in pv_profile:
+            if row['P_TOTAL'] == '':
+                pass
+            else:
+                P_tot = float(row['P_TOTAL'])
+                P_pv = round((2/7) * P_tot) # W
+                #print(P_pv)
+            Timestamp_sim = (row['Timestamp'])
+            time.sleep(1)
+class Last_dummy(Thread):
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        global P_Last
+        csv_file = open('Last_csv\LP17_2010-06-23_18.00.00_to_2010-06-23_23.59.59_Mi.csv',newline='')
+        load_profile = csv.DictReader(csv_file,delimiter=',')
+        for row in load_profile:
+            P1 = float(row['P1'])
+            P2 = float(row['P2'])
+            P3 = float(row['P3'])
+            P_Last = P1+P2+P3
+            #print(row['Timestamp'],'--->',P_Last,'W')
+            time.sleep(1)
+class BSS_dummy(Thread):
+    def __init__(self,E_bat_sum,E_bat_max,P_BSS_sum, SoC):
+        super().__init__()
+        self.E_bat_sum = E_bat_sum
+        self.E_bat_max = E_bat_max
+        self.P_BSS_sum = P_BSS_sum
+        self.SoC = SoC
+
+    def run(self):
+        while True:
+            time.sleep(1)
+            self.SoC = round((self.E_bat_sum/self.E_bat_max)*100,1)
+            self.E_bat_sum = round(sum(WE.E_bat_v for WE in Wohneinheiten),1)
+            self.P_BSS_sum = round(sum(WE.P_bat_v for WE in Wohneinheiten),1)
+class Database(Thread):
+    def __init__(self):
+        super().__init__()
+
+    def Momentanwertdatenbank(self):
+        global P_pv
+        global P_Last
+        path = 'MomentanwertDB_sim1.db'
+        timestamp = datetime.datetime.now()
+        Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
+        P_load_sum = round(sum(WE.P_load_v for WE in Wohneinheiten),1)
+        P_Netz_sum = round(sum(WE.P_Netz_v for WE in Wohneinheiten),1)
+        value_list = [
+                    (Timestamp,'Geraetewerte',BSS.E_bat_sum,BSS.SoC,BSS.P_BSS_sum,P_load_sum,P_pv*24, P_Netz_sum),
+                    (Timestamp,WE1.Wohneinheit, round(WE1.E_bat_v,1), round((WE1.E_bat_v / 3167) * 100, 1),WE1.P_bat_v, WE1.P_load_v, P_pv, WE1.P_Netz_v),
+                    (Timestamp,WE2.Wohneinheit, round(WE2.E_bat_v,1), round((WE2.E_bat_v / 3167) * 100, 1),WE2.P_bat_v, WE2.P_load_v, P_pv, WE2.P_Netz_v),
+                    (Timestamp,WE3.Wohneinheit, round(WE3.E_bat_v,1), round((WE3.E_bat_v / 3167) * 100, 1),WE3.P_bat_v, WE3.P_load_v, P_pv, WE3.P_Netz_v),
+                    (Timestamp,WE4.Wohneinheit, round(WE4.E_bat_v,1), round((WE4.E_bat_v / 3167) * 100, 1),WE4.P_bat_v, WE4.P_load_v, P_pv, WE4.P_Netz_v),
+                    (Timestamp,WE5.Wohneinheit, round(WE5.E_bat_v,1), round((WE5.E_bat_v / 3167) * 100, 1),WE5.P_bat_v, WE5.P_load_v, P_pv, WE5.P_Netz_v),
+                    (Timestamp,WE6.Wohneinheit, round(WE6.E_bat_v,1),round((WE6.E_bat_v / 3167) * 100, 1),WE6.P_bat_v,WE6.P_load_v, P_pv, WE6.P_Netz_v),
+                    (Timestamp,WE7.Wohneinheit, round(WE7.E_bat_v, 1), round((WE7.E_bat_v / 3167) * 100, 1), WE7.P_bat_v,WE7.P_load_v, P_pv, WE7.P_Netz_v),
+                    (Timestamp, WE8.Wohneinheit, round(WE8.E_bat_v, 1), round((WE8.E_bat_v / 3167) * 100, 1), WE8.P_bat_v,WE8.P_load_v, P_pv, WE8.P_Netz_v),
+                    (Timestamp, WE9.Wohneinheit, round(WE9.E_bat_v, 1), round((WE9.E_bat_v / 3167) * 100, 1), WE9.P_bat_v,WE9.P_load_v, P_pv, WE9.P_Netz_v),
+                    (Timestamp, WE10.Wohneinheit, round(WE10.E_bat_v, 1), round((WE10.E_bat_v / 3167) * 100, 1), WE10.P_bat_v,WE10.P_load_v, P_pv, WE10.P_Netz_v),
+                    (Timestamp, WE11.Wohneinheit, round(WE11.E_bat_v, 1), round((WE11.E_bat_v / 3167) * 100, 1), WE11.P_bat_v,WE11.P_load_v, P_pv, WE11.P_Netz_v),
+                    (Timestamp, WE12.Wohneinheit, round(WE12.E_bat_v, 1), round((WE12.E_bat_v / 3167) * 100, 1), WE12.P_bat_v,WE12.P_load_v, P_pv, WE12.P_Netz_v),
+                    (Timestamp, WE13.Wohneinheit, round(WE13.E_bat_v, 1), round((WE13.E_bat_v / 3167) * 100, 1), WE13.P_bat_v,WE13.P_load_v, P_pv, WE13.P_Netz_v),
+                    (Timestamp, WE14.Wohneinheit, round(WE14.E_bat_v, 1), round((WE14.E_bat_v / 3167) * 100, 1), WE14.P_bat_v,WE14.P_load_v, P_pv, WE14.P_Netz_v),
+                    (Timestamp, WE15.Wohneinheit, round(WE15.E_bat_v, 1), round((WE15.E_bat_v / 3167) * 100, 1), WE15.P_bat_v,WE15.P_load_v, P_pv, WE15.P_Netz_v),
+                    (Timestamp, WE16.Wohneinheit, round(WE16.E_bat_v, 1), round((WE16.E_bat_v / 3167) * 100, 1), WE16.P_bat_v,WE16.P_load_v, P_pv, WE16.P_Netz_v),
+                    (Timestamp, WE17.Wohneinheit, round(WE17.E_bat_v, 1), round((WE17.E_bat_v / 3167) * 100, 1), WE17.P_bat_v,WE17.P_load_v, P_pv, WE17.P_Netz_v),
+                    (Timestamp, WE18.Wohneinheit, round(WE18.E_bat_v, 1), round((WE18.E_bat_v / 3167) * 100, 1), WE18.P_bat_v,WE18.P_load_v, P_pv, WE18.P_Netz_v),
+                    (Timestamp, WE19.Wohneinheit, round(WE19.E_bat_v, 1), round((WE19.E_bat_v / 3167) * 100, 1), WE19.P_bat_v,WE19.P_load_v, P_pv, WE19.P_Netz_v),
+                    (Timestamp, WE20.Wohneinheit, round(WE20.E_bat_v, 1), round((WE20.E_bat_v / 3167) * 100, 1), WE20.P_bat_v,WE20.P_load_v, P_pv, WE20.P_Netz_v),
+                    (Timestamp, WE21.Wohneinheit, round(WE21.E_bat_v, 1), round((WE21.E_bat_v / 3167) * 100, 1), WE21.P_bat_v,WE21.P_load_v, P_pv, WE21.P_Netz_v),
+                    (Timestamp, WE22.Wohneinheit, round(WE22.E_bat_v, 1), round((WE22.E_bat_v / 3167) * 100, 1), WE22.P_bat_v,WE22.P_load_v, P_pv, WE22.P_Netz_v),
+                    (Timestamp, WE23.Wohneinheit, round(WE23.E_bat_v, 1), round((WE23.E_bat_v / 3167) * 100, 1), WE23.P_bat_v,WE23.P_load_v, P_pv, WE23.P_Netz_v),
+                    (Timestamp, WE24.Wohneinheit, round(WE24.E_bat_v, 1), round((WE24.E_bat_v / 3167) * 100, 1), WE24.P_bat_v,WE24.P_load_v, P_pv, WE24.P_Netz_v)
+                      ]
+        conSQ = sqlite3.connect(path)
+        curSQ = conSQ.cursor()
+        curSQ.execute("CREATE TABLE IF NOT EXISTS Tabelle1 "
+                      "(Timestamp text, name text PRIMARY KEY,E_bat real, SoC real,P_BSS real, P_Last real,P_PV real, P_Netz real)")
+        curSQ.executemany("INSERT OR REPLACE INTO Tabelle1 "
+                          "(Timestamp, name, E_bat, SoC,P_BSS, P_Last,P_PV, P_Netz) VALUES (?,?,?,?,?,?,?,?)",(value_list))
+        conSQ.commit()
+        for row in curSQ.execute("SELECT * FROM Tabelle1"):
+            row
+
+    def run(self):
+        while True:
+            data.Momentanwertdatenbank()
+
+
+
+class BSS_virtuell(Thread):
+    def __init__(self,Wohneinheit,P_bat_v,E_bat_v,dE_v,P_load_v,load_offset,P_Netz_v):
+        super().__init__()
+        self.Wohneinheit = Wohneinheit
+        self.P_bat_v = P_bat_v
+        self.E_bat_v = E_bat_v
+        self.dE_v = dE_v
+        self.P_load_v = P_load_v
+        self.load_offset = load_offset
+        self.P_Netz_v = P_Netz_v
+
+    def ueberschussladen(self):
+        global P_Last
+        global P_pv
+
+        self.P_load_v = P_Last*self.load_offset
+        self.dE_v = (-self.P_load_v * (1/3600)) + (P_pv * (1/3600))
+
+        if self.E_bat_v + self.dE_v <= 158:     #5% SoC
+            #print('Energiekonto von',self.Wohneinheit,'leer, setze Entladeleistung P_bat = 0')
+            self.P_bat_v = 0
+            self.P_Netz_v = self.P_load_v - P_pv - self.P_bat_v
+
+
+        elif self.E_bat_v + self.dE_v >= 3167:
+            #print('Energiekonto von',self.Wohneinheit, 'ist voll, setze Ladeleistung P_bat = 0')
+            self.P_bat_v = 0
+            self.P_Netz_v = self.P_load_v - P_pv - self.P_bat_v
+
+        else:
+            self.E_bat_v = self.E_bat_v + self.dE_v
+            self.P_bat_v = self.P_load_v - P_pv       # bei PV-Überschuss negativer Wert -> Speicher laden!
+            self.P_Netz_v = self.P_load_v - P_pv - self.P_bat_v
+
+
+    def run(self):
+        while True:
+            for WE in Wohneinheiten:
+                if BSS.E_bat_sum <= 3800 or BSS.E_bat_sum >= 76000:
+                    #print('Batterie leer')
+                    pass
+                else:
+                    #print('Aktiviere Überschussladen')
+                    WE.ueberschussladen()
+
+            #print('WE1:Last P_L =',WE1.P_load_v,'W ----> WE2: Last P_L =',WE2.P_load_v,'W')
+            time.sleep(1)
+
+
+
+BSS = BSS_dummy(7600,76000,0,50) #E_bat_sum, E_bat_max, P_BSS_sum, SoC
+PV = PV_dummy()
+Last = Last_dummy()
+data = Database()
+
+WE1 = BSS_virtuell('WE1',0,2220,0,0,0.5,0)  #WE,P_bat_r, E_bat_v, dE_v,P_load_v, load_offset, P_Netz
+WE2 = BSS_virtuell('WE2',0,2000,0,0,0.4,0)  #Angabe in W bzw. Wh
+WE3 = BSS_virtuell('WE3',0,1300,0,0,0.3,0)
+WE4 = BSS_virtuell('WE4',0,1900,0,0,0.35,0)
+WE5 = BSS_virtuell('WE5',0,1000,0,0,0.45,0)
+WE6 = BSS_virtuell('WE6',0,2500,0,0,0.37,0)
+WE7 = BSS_virtuell('WE7',0,1900,0,0,0.29,0)
+WE8 = BSS_virtuell('WE8',0,1000,0,0,0.3,0)
+WE9 = BSS_virtuell('WE9',0,1400,0,0,0.6,0)
+WE10 = BSS_virtuell('WE10',0,1900,0,0,0.55,0)
+WE11 = BSS_virtuell('WE11',0,1000,0,0,0.39,0)
+WE12 = BSS_virtuell('WE12',0,1800,0,0,0.44,0)
+WE13 = BSS_virtuell('WE13',0,1900,0,0,0.3,0)
+WE14 = BSS_virtuell('WE14',0,1000,0,0,0.4,0)
+WE15 = BSS_virtuell('WE15',0,1200,0,0,0.5,0)
+WE16 = BSS_virtuell('WE16',0,1900,0,0,0.25,0)
+WE17 = BSS_virtuell('WE17',0,1000,0,0,0.33,0)
+WE18 = BSS_virtuell('WE18',0,900,0,0,0.45,0)
+WE19 = BSS_virtuell('WE19',0,1900,0,0,0.35,0)
+WE20 = BSS_virtuell('WE20',0,1000,0,0,0.45,0)
+WE21 = BSS_virtuell('WE21',0,1000,0,0,0.35,0)
+WE22 = BSS_virtuell('WE22',0,1100,0,0,0.38,0)
+WE23 = BSS_virtuell('WE23',0,1900,0,0,0.37,0)
+WE24 = BSS_virtuell('WE24',0,1000,0,0,0.39,0)
+Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
+                 WE13, WE14, WE15, WE16, WE17, WE18, WE19, WE20, WE21, WE22, WE23, WE24]
+
+
+
+concurrentthreads = [PV,Last,BSS,WE1,data]
+for threads in concurrentthreads:
+    threads.start()
