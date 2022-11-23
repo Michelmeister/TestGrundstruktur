@@ -106,9 +106,11 @@ class Database(Thread):
 
     def CSV_Daten(self):
         global P_pv
-        path2 = 'CSV_Datenbank\data_Nov22_sim1.db'
         timestamp = datetime.datetime.now()
         Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
+        month = str(timestamp.strftime("%b%Y"))
+
+        path2 = 'CSV_Datenbank\data_' + month + '_sim1.db'
 
         csv_list_we1 = [Timestamp, WE1.E_bat_v, WE1.SoC_v,WE1.P_bat_v,WE1.P_load_v,WE1.P_Wallbox,P_pv,WE1.P_Netz_v]
         csv_list_we2 = [Timestamp, WE2.E_bat_v, WE2.SoC_v,WE2.P_bat_v,WE2.P_load_v,WE2.P_Wallbox,P_pv,WE2.P_Netz_v]
