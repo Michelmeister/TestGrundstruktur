@@ -60,6 +60,7 @@ class Database(Thread):
     def Momentanwertdatenbank(self):
         global P_pv
         global P_Last
+        global P_load_sum
         path = 'MomentanwertDB_sim1.db'
         timestamp = datetime.datetime.now()
         Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
@@ -119,14 +120,14 @@ class BSS_virtuell(Thread):
         self.load_offset = load_offset
         self.P_Netz_v = P_Netz_v
 
-    def ueberschussladen(self):
+    def strategy1_ueberschussladen(self):
         global P_Last
         global P_pv
 
         self.P_load_v = P_Last*self.load_offset
         self.dE_v = (-self.P_load_v * (1/3600)) + (P_pv * (1/3600))
 
-        if self.E_bat_v + self.dE_v <= 158:     #5% SoC
+        if self.E_bat_v + self.dE_v <= 158:     #SoC=5%
             #print('Energiekonto von',self.Wohneinheit,'leer, setze Entladeleistung P_bat = 0')
             self.P_bat_v = 0
             self.P_Netz_v = self.P_load_v - P_pv - self.P_bat_v
@@ -143,17 +144,20 @@ class BSS_virtuell(Thread):
             self.P_Netz_v = self.P_load_v - P_pv - self.P_bat_v
 
 
-    def run(self):
+    def run(self):  # AUFRUF DER BETRIEBSSTRATEGIE
+        global P_pv
+        global Timestamp_sim
+        global P_load_sum
+        a = 1
         while True:
             for WE in Wohneinheiten:
-                if BSS.E_bat_sum <= 3800 or BSS.E_bat_sum >= 76000:
-                    #print('Batterie leer')
-                    pass
+                if a == 1: # Hier können später Bedingungen gesetzt werden, wann welche Strategie gefahren werden soll
+                    WE.strategy1_ueberschussladen()
                 else:
-                    #print('Aktiviere Überschussladen')
-                    WE.ueberschussladen()
+                    WE.strategy1_ueberschussladen()
+                    pass
 
-            #print('WE1:Last P_L =',WE1.P_load_v,'W ----> WE2: Last P_L =',WE2.P_load_v,'W')
+            print('Summierte Werte -> P_BSS_sum =',BSS.P_BSS_sum,'W ---> P_load_sum =',P_load_sum,'W ---> P_pv_sum =',P_pv*24,'W ---> Simulierter Zeitstempel ---',Timestamp_sim)
             time.sleep(1)
 
 
@@ -192,6 +196,6 @@ Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
 
 
 
-concurrentthreads = [PV,Last,BSS,WE1,data]
+concurrentthreads = [PV,Last,BSS,data,WE1]
 for threads in concurrentthreads:
     threads.start()
