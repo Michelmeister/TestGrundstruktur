@@ -1,0 +1,25 @@
+2022-11-22 13:55:27,626:emobpy.init:_merge_user_files_with_sys_files:Deleted file: C:\Users\Michel\AppData\Local\emobpy\emobpy\country_code_zones.json
+2022-11-22 13:55:27,627:emobpy.init:_merge_user_files_with_sys_files:Deleted file: C:\Users\Michel\AppData\Local\emobpy\emobpy\driving_cycles.csv
+2022-11-22 13:55:27,627:emobpy.init:_merge_user_files_with_sys_files:Deleted file: C:\Users\Michel\AppData\Local\emobpy\emobpy\driving_cycles.yaml
+2022-11-22 13:55:27,628:emobpy.init:_merge_user_files_with_sys_files:Deleted file: C:\Users\Michel\AppData\Local\emobpy\emobpy\evspecs.json
+2022-11-22 13:55:27,628:emobpy.init:_merge_user_files_with_sys_files:Deleted file: C:\Users\Michel\AppData\Local\emobpy\emobpy\hourly-dew_point_temp_Kelvin.csv
+2022-11-22 13:55:27,629:emobpy.init:_merge_user_files_with_sys_files:Deleted file: C:\Users\Michel\AppData\Local\emobpy\emobpy\hourly-sea_level_pressure_Pascal.csv
+2022-11-22 13:55:27,629:emobpy.init:_merge_user_files_with_sys_files:Deleted file: C:\Users\Michel\AppData\Local\emobpy\emobpy\hourly-temp_Kelvin.csv
+2022-11-22 13:55:27,630:emobpy.init:_merge_user_files_with_sys_files:Deleted file: C:\Users\Michel\AppData\Local\emobpy\emobpy\motor_efficiency.csv
+2022-11-22 13:55:28,024:emobpy.mobility:run:New profile running: This_is_a_file_name_prefix_W2_43316
+2022-11-22 13:55:28,024:emobpy.mobility:run:###################################################
+2022-11-22 13:55:28,024:emobpy.mobility:run:===================================================
+2022-11-22 13:55:28,024:emobpy.mobility:run:New profile running: This_is_a_file_name_prefix_W2_43316
+2022-11-22 13:55:28,025:emobpy.mobility:run:===================================================
+2022-11-22 13:55:28,025:emobpy.mobility:run:###################################################
+2022-11-22 13:55:40,968:emobpy.mobility:_select_tour:No trip day: 2
+2022-11-22 13:55:40,999:emobpy.mobility:_select_tour:No trip day: 4
+2022-11-22 13:55:41,002:emobpy.mobility:_select_tour:No trip day: 5
+2022-11-22 13:55:41,024:emobpy.mobility:_select_tour:No trip day: 7
+2022-11-22 13:55:41,077:emobpy.mobility:run:Profile done: This_is_a_file_name_prefix_W2_43316
+2022-11-22 13:55:41,077:emobpy.mobility:run:Elapsed time (min): 0.22
+2022-11-22 13:55:41,088:emobpy.mobility:save_profile:Profile saved: db\This_is_a_file_name_prefix_W2_43316.pickle
+2022-11-22 13:55:41,088:emobpy.mobility:save_profile: 
+2022-11-22 13:55:41,088:emobpy.mobility:save_profile:See Log files
+2022-11-22 13:55:41,089:emobpy.mobility:save_profile:C:\Users\Michel\Desktop\elenia drive\Offline-Ordner\01_Projektarbeit\01_Programmierung\00_EMS_MELANI\my_evs\log\emobpy.log
+2022-11-22 15:02:26,007:emobpy.tools:parallelize:Workers: 4 of 12
