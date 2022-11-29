@@ -12,6 +12,8 @@ class PV_dummy(Thread):
     def run(self):
         global P_pv
         global Timestamp_sim
+        P_pv = 0
+        Timestamp_sim = 0
 
         csv_file = open('PV_csv\PV_2021-03-23_18.00.00_to_23.59.59_cloudy.csv',newline='')
         pv_profile = csv.DictReader(csv_file,delimiter=',')
@@ -30,6 +32,7 @@ class Last_dummy(Thread):
 
     def run(self):
         global P_Last
+        P_Last = 0
         csv_file = open('Last_csv\LP17_2010-06-23_18.00.00_to_2010-06-23_23.59.59_Mi.csv',newline='')
         load_profile = csv.DictReader(csv_file,delimiter=',')
         for row in load_profile:
@@ -58,9 +61,8 @@ class Database(Thread):
         super().__init__()
 
     def Momentanwertdatenbank(self):
-        global P_pv
-        global P_Last
         global P_load_sum
+        global P_pv_sum
         path = 'MomentanwertDB_sim2.db'
         timestamp = datetime.datetime.now()
         Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
@@ -70,30 +72,30 @@ class Database(Thread):
         P_Wallbox_sum = 0
         value_list = [
                     (Timestamp,'Geraetewerte',BSS.E_bat_sum,BSS.SoC,BSS.P_BSS_sum,P_load_sum, P_Wallbox_sum,P_pv_sum, P_Netz_sum),
-                    (Timestamp,WE1.Wohneinheit, WE1.E_bat_v, WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_v, WE1.P_Netz_v),
-                    (Timestamp,WE2.Wohneinheit, WE2.E_bat_v, WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_v, WE2.P_Netz_v),
-                    (Timestamp,WE3.Wohneinheit, WE3.E_bat_v, WE3.SoC_v, WE3.P_bat_v, WE3.P_load_v, WE3.P_Wallbox, WE3.P_pv_v, WE3.P_Netz_v),
-                    (Timestamp,WE4.Wohneinheit, WE4.E_bat_v, WE4.SoC_v, WE4.P_bat_v, WE4.P_load_v, WE4.P_Wallbox, WE4.P_pv_v, WE4.P_Netz_v),
-                    (Timestamp,WE5.Wohneinheit, WE5.E_bat_v, WE5.SoC_v, WE5.P_bat_v, WE5.P_load_v, WE5.P_Wallbox, WE5.P_pv_v, WE5.P_Netz_v),
-                    (Timestamp,WE6.Wohneinheit, WE6.E_bat_v, WE6.SoC_v, WE6.P_bat_v, WE6.P_load_v, WE6.P_Wallbox, WE6.P_pv_v, WE6.P_Netz_v),
-                    (Timestamp,WE7.Wohneinheit, WE7.E_bat_v, WE7.SoC_v, WE7.P_bat_v, WE7.P_load_v, WE7.P_Wallbox, WE7.P_pv_v, WE7.P_Netz_v),
-                    (Timestamp,WE8.Wohneinheit, WE8.E_bat_v, WE8.SoC_v, WE8.P_bat_v, WE8.P_load_v, WE8.P_Wallbox, WE8.P_pv_v, WE8.P_Netz_v),
-                    (Timestamp,WE9.Wohneinheit, WE9.E_bat_v, WE9.SoC_v, WE9.P_bat_v, WE9.P_load_v, WE9.P_Wallbox, WE9.P_pv_v, WE9.P_Netz_v),
-                    (Timestamp,WE10.Wohneinheit,WE10.E_bat_v,WE10.SoC_v,WE10.P_bat_v,WE10.P_load_v,WE10.P_Wallbox,WE10.P_pv_v, WE10.P_Netz_v),
-                    (Timestamp,WE11.Wohneinheit,WE11.E_bat_v,WE11.SoC_v,WE11.P_bat_v,WE11.P_load_v,WE11.P_Wallbox,WE11.P_pv_v, WE11.P_Netz_v),
-                    (Timestamp,WE12.Wohneinheit,WE12.E_bat_v,WE12.SoC_v,WE12.P_bat_v,WE12.P_load_v,WE12.P_Wallbox,WE12.P_pv_v, WE12.P_Netz_v),
-                    (Timestamp,WE13.Wohneinheit,WE13.E_bat_v,WE13.SoC_v,WE13.P_bat_v,WE13.P_load_v,WE13.P_Wallbox,WE13.P_pv_v, WE13.P_Netz_v),
-                    (Timestamp,WE14.Wohneinheit,WE14.E_bat_v,WE14.SoC_v,WE14.P_bat_v,WE14.P_load_v,WE14.P_Wallbox,WE14.P_pv_v, WE14.P_Netz_v),
-                    (Timestamp,WE15.Wohneinheit,WE15.E_bat_v,WE15.SoC_v,WE15.P_bat_v,WE15.P_load_v,WE15.P_Wallbox,WE15.P_pv_v, WE15.P_Netz_v),
-                    (Timestamp,WE16.Wohneinheit,WE16.E_bat_v,WE16.SoC_v,WE16.P_bat_v,WE16.P_load_v,WE16.P_Wallbox,WE16.P_pv_v, WE16.P_Netz_v),
-                    (Timestamp,WE17.Wohneinheit,WE17.E_bat_v,WE17.SoC_v,WE17.P_bat_v,WE17.P_load_v,WE17.P_Wallbox,WE17.P_pv_v, WE17.P_Netz_v),
-                    (Timestamp,WE18.Wohneinheit,WE18.E_bat_v,WE18.SoC_v,WE18.P_bat_v,WE18.P_load_v,WE18.P_Wallbox,WE18.P_pv_v, WE18.P_Netz_v),
-                    (Timestamp,WE19.Wohneinheit,WE19.E_bat_v,WE19.SoC_v,WE19.P_bat_v,WE19.P_load_v,WE19.P_Wallbox,WE19.P_pv_v, WE19.P_Netz_v),
-                    (Timestamp,WE20.Wohneinheit,WE20.E_bat_v,WE20.SoC_v,WE20.P_bat_v,WE20.P_load_v,WE20.P_Wallbox,WE20.P_pv_v, WE20.P_Netz_v),
-                    (Timestamp,WE21.Wohneinheit,WE21.E_bat_v,WE21.SoC_v,WE21.P_bat_v,WE21.P_load_v,WE21.P_Wallbox,WE21.P_pv_v, WE21.P_Netz_v),
-                    (Timestamp,WE22.Wohneinheit,WE22.E_bat_v,WE22.SoC_v,WE22.P_bat_v,WE22.P_load_v,WE22.P_Wallbox,WE22.P_pv_v, WE22.P_Netz_v),
-                    (Timestamp,WE23.Wohneinheit,WE23.E_bat_v,WE23.SoC_v,WE23.P_bat_v,WE23.P_load_v,WE23.P_Wallbox,WE23.P_pv_v, WE23.P_Netz_v),
-                    (Timestamp,WE24.Wohneinheit,WE24.E_bat_v,WE24.SoC_v,WE24.P_bat_v,WE24.P_load_v,WE24.P_Wallbox,WE24.P_pv_v, WE24.P_Netz_v)
+                    (Timestamp,WE1.Wohneinheit, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_v, WE1.P_Netz_v),
+                    (Timestamp,WE2.Wohneinheit, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_v, WE2.P_Netz_v),
+                    (Timestamp,WE3.Wohneinheit, round(WE3.E_bat_v,2), WE3.SoC_v, WE3.P_bat_v, WE3.P_load_v, WE3.P_Wallbox, WE3.P_pv_v, WE3.P_Netz_v),
+                    (Timestamp,WE4.Wohneinheit, round(WE4.E_bat_v,2), WE4.SoC_v, WE4.P_bat_v, WE4.P_load_v, WE4.P_Wallbox, WE4.P_pv_v, WE4.P_Netz_v),
+                    (Timestamp,WE5.Wohneinheit, round(WE5.E_bat_v,2), WE5.SoC_v, WE5.P_bat_v, WE5.P_load_v, WE5.P_Wallbox, WE5.P_pv_v, WE5.P_Netz_v),
+                    (Timestamp,WE6.Wohneinheit, round(WE6.E_bat_v,2), WE6.SoC_v, WE6.P_bat_v, WE6.P_load_v, WE6.P_Wallbox, WE6.P_pv_v, WE6.P_Netz_v),
+                    (Timestamp,WE7.Wohneinheit, round(WE7.E_bat_v,2), WE7.SoC_v, WE7.P_bat_v, WE7.P_load_v, WE7.P_Wallbox, WE7.P_pv_v, WE7.P_Netz_v),
+                    (Timestamp,WE8.Wohneinheit, round(WE8.E_bat_v,2), WE8.SoC_v, WE8.P_bat_v, WE8.P_load_v, WE8.P_Wallbox, WE8.P_pv_v, WE8.P_Netz_v),
+                    (Timestamp,WE9.Wohneinheit, round(WE9.E_bat_v,2), WE9.SoC_v, WE9.P_bat_v, WE9.P_load_v, WE9.P_Wallbox, WE9.P_pv_v, WE9.P_Netz_v),
+                    (Timestamp,WE10.Wohneinheit,round(WE10.E_bat_v,2),WE10.SoC_v,WE10.P_bat_v,WE10.P_load_v,WE10.P_Wallbox,WE10.P_pv_v, WE10.P_Netz_v),
+                    (Timestamp,WE11.Wohneinheit,round(WE11.E_bat_v,2),WE11.SoC_v,WE11.P_bat_v,WE11.P_load_v,WE11.P_Wallbox,WE11.P_pv_v, WE11.P_Netz_v),
+                    (Timestamp,WE12.Wohneinheit,round(WE12.E_bat_v,2),WE12.SoC_v,WE12.P_bat_v,WE12.P_load_v,WE12.P_Wallbox,WE12.P_pv_v, WE12.P_Netz_v),
+                    (Timestamp,WE13.Wohneinheit,round(WE13.E_bat_v,2),WE13.SoC_v,WE13.P_bat_v,WE13.P_load_v,WE13.P_Wallbox,WE13.P_pv_v, WE13.P_Netz_v),
+                    (Timestamp,WE14.Wohneinheit,round(WE14.E_bat_v,2),WE14.SoC_v,WE14.P_bat_v,WE14.P_load_v,WE14.P_Wallbox,WE14.P_pv_v, WE14.P_Netz_v),
+                    (Timestamp,WE15.Wohneinheit,round(WE15.E_bat_v,2),WE15.SoC_v,WE15.P_bat_v,WE15.P_load_v,WE15.P_Wallbox,WE15.P_pv_v, WE15.P_Netz_v),
+                    (Timestamp,WE16.Wohneinheit,round(WE16.E_bat_v,2),WE16.SoC_v,WE16.P_bat_v,WE16.P_load_v,WE16.P_Wallbox,WE16.P_pv_v, WE16.P_Netz_v),
+                    (Timestamp,WE17.Wohneinheit,round(WE17.E_bat_v,2),WE17.SoC_v,WE17.P_bat_v,WE17.P_load_v,WE17.P_Wallbox,WE17.P_pv_v, WE17.P_Netz_v),
+                    (Timestamp,WE18.Wohneinheit,round(WE18.E_bat_v,2),WE18.SoC_v,WE18.P_bat_v,WE18.P_load_v,WE18.P_Wallbox,WE18.P_pv_v, WE18.P_Netz_v),
+                    (Timestamp,WE19.Wohneinheit,round(WE19.E_bat_v,2),WE19.SoC_v,WE19.P_bat_v,WE19.P_load_v,WE19.P_Wallbox,WE19.P_pv_v, WE19.P_Netz_v),
+                    (Timestamp,WE20.Wohneinheit,round(WE20.E_bat_v,2),WE20.SoC_v,WE20.P_bat_v,WE20.P_load_v,WE20.P_Wallbox,WE20.P_pv_v, WE20.P_Netz_v),
+                    (Timestamp,WE21.Wohneinheit,round(WE21.E_bat_v,2),WE21.SoC_v,WE21.P_bat_v,WE21.P_load_v,WE21.P_Wallbox,WE21.P_pv_v, WE21.P_Netz_v),
+                    (Timestamp,WE22.Wohneinheit,round(WE22.E_bat_v,2),WE22.SoC_v,WE22.P_bat_v,WE22.P_load_v,WE22.P_Wallbox,WE22.P_pv_v, WE22.P_Netz_v),
+                    (Timestamp,WE23.Wohneinheit,round(WE23.E_bat_v,2),WE23.SoC_v,WE23.P_bat_v,WE23.P_load_v,WE23.P_Wallbox,WE23.P_pv_v, WE23.P_Netz_v),
+                    (Timestamp,WE24.Wohneinheit,round(WE24.E_bat_v,2),WE24.SoC_v,WE24.P_bat_v,WE24.P_load_v,WE24.P_Wallbox,WE24.P_pv_v, WE24.P_Netz_v)
                       ]
         conSQ = sqlite3.connect(path)
         curSQ = conSQ.cursor()
@@ -106,7 +108,6 @@ class Database(Thread):
             row
 
     def CSV_Daten(self):
-        global P_pv
         timestamp = datetime.datetime.now()
         Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
         month = str(timestamp.strftime("%b%Y"))
@@ -140,6 +141,7 @@ class Database(Thread):
         while True:
             data.Momentanwertdatenbank()
             data.CSV_Daten()
+            time.sleep(0.3)
 
 
 
@@ -159,10 +161,7 @@ class BSS_virtuell(Thread):
         self.P_pv_v = P_pv_v
 
     def strategy1_ueberschussladen(self):
-        global P_Last
-        global P_pv
-
-        self.P_load_v = P_Last*self.load_offset
+        self.P_load_v = (P_Last * self.load_offset)
         self.P_pv_v = P_pv
         self.dE_v = (-self.P_load_v * (1/3600)) + (P_pv * (1/3600))
         self.SoC_v = round(((self.E_bat_v/self.E_bat_v_max)*100),1)
@@ -179,25 +178,22 @@ class BSS_virtuell(Thread):
             self.P_Netz_v = self.P_load_v - P_pv - self.P_bat_v
 
         else:
-            self.E_bat_v = round((self.E_bat_v + self.dE_v) ,2)
+            self.E_bat_v = self.E_bat_v + self.dE_v
             self.P_bat_v = self.P_load_v - P_pv       # bei PV-Überschuss negativer Wert -> Speicher laden!
             self.P_Netz_v = self.P_load_v - P_pv - self.P_bat_v
 
 
     def run(self):  # AUFRUF DER BETRIEBSSTRATEGIE
-        global P_pv
-        global Timestamp_sim
-        global P_load_sum
-        a = 1
         while True:
-            for WE in Wohneinheiten:
-                if a == 1: # Hier können später Bedingungen gesetzt werden, wann welche Strategie gefahren werden soll
+            try:
+                for WE in Wohneinheiten:
                     WE.strategy1_ueberschussladen()
-                else:
-                    WE.strategy1_ueberschussladen()
-                    pass
+                print('Summierte Werte -> P_BSS_sum =',BSS.P_BSS_sum,'W ---> P_load_sum =',P_load_sum,'W ---> P_pv_sum =',P_pv_sum,'W ---> Simulierter Zeitstempel ---',Timestamp_sim)
+                #print('Kontrollrechnung --> WE 1: E_bat =',round(WE1.E_bat_v,4),'Wh --> P_BSS_v =',WE1.P_bat_v,'W --> dE =',WE1.dE_v,'Wh')
 
-            print('Summierte Werte -> P_BSS_sum =',BSS.P_BSS_sum,'W ---> P_load_sum =',P_load_sum,'W ---> P_pv_sum =',P_pv*24,'W ---> Simulierter Zeitstempel ---',Timestamp_sim)
+            except NameError as err:
+                print('NameError --->',str(err))
+
             time.sleep(1)
 
 
@@ -233,7 +229,6 @@ WE23 = BSS_virtuell('WE23',0,1900,0,0,0.37,0,20,3167,0,0)
 WE24 = BSS_virtuell('WE24',0,1000,0,0,0.39,0,20,3167,0,0)
 Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
                  WE13, WE14, WE15, WE16, WE17, WE18, WE19, WE20, WE21, WE22, WE23, WE24]
-
 
 
 concurrentthreads = [PV,Last,BSS,data,WE1]
