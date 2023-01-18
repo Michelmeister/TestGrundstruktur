@@ -1,65 +1,28 @@
-import sqlite3
-import time
 from threading import Thread
+import time
+from datetime import datetime,timezone
+import pytz
+#from Simulation import *
 
-def Energieberechnung():
-    E_bat = 0
-    for Durchlauf in range (0,3600):
-        P = 1000 # W
-        E_bat = (E_bat + (P * 1/3600))
-        print('E_bat =',round(E_bat),'Wh -> Durchlauf - ', Durchlauf)
-        #time.sleep(1)
-#Energieberechnung()
-
-class Database(Thread):
+class BSS():
     def __init__(self):
-        super().__init__()
+        self.E_bat = 0
+        self.P_bat = P_bat
+        self.E_bat_max = 3167
 
-    def run(self):
-        global market_WE1
+    def Energiefluss(self):
         while True:
-            conn = sqlite3.connect('marketDB_sim.db')
-            cc = conn.cursor()
-
-            cc.execute('SELECT * FROM MarktTabelle')
-            value = cc.fetchall()
-
-            market_WE1 = value[1][1]
-            market_WE2 = value[2][1]
-            market_WE3 = value[3][1]
-            market_WE4 = value[4][1]
-
-            #print(market_WE3)
-
+            print('E_bat =',self.E_bat,'kWh & P_bat =',P_bat,'kW & E_bat_max =',self.E_bat_max,'kWh')
+            self.E_bat = self.E_bat + 1 # kWh
             time.sleep(1)
-
-class BSS_virtuell(Thread):
-    def __init__(self,marketvalue,P_pv_v):
-        super().__init__()
-        self.marketvalue = marketvalue
-        self.P_pv_v = P_pv_v
-
-    def run(self):
-        while True:
-            try:
-                #self.marketvalue = 'Normal'
-                print('Objekteinstellung -> ', WE1.marketvalue)
+#P_bat = 10 #kW
+# #BSS_Aufruf = BSS()
+#BSS_Aufruf.Energiefluss()
 
 
-            except NameError as err:
-                print('NameError ->',str(err))
-                pass
-            time.sleep(1)
+timestamp = datetime.now(timezone.utc)
+local_time= timestamp.astimezone(pytz.timezone('Europe/Berlin'))
+Timestamp = str(local_time.strftime("%d-%m-%Y %H:%M:%S UTC%z"))
 
-
-
-market_WE = 'Normal'
-WE1 = BSS_virtuell(market_WE,5)
-data = Database()
-
-concurrentthreads = [data,WE1]
-for threads in concurrentthreads:
-    threads.start()
-
-
+print(Timestamp)
 
