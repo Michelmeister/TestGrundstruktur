@@ -1,7 +1,8 @@
 from threading import Thread
 import time
 import csv
-import datetime
+from datetime import datetime,timezone
+import pytz
 import sqlite3
 
 
@@ -45,9 +46,11 @@ class Last_dummy(Thread):
 class BSS_dummy(Thread):
     def __init__(self):
         super().__init__()
-        self.E_bat_sum = 30000 # initial value
+        self.E_bat_device = 35000 # Wh
+        self.P_BSS_device = 0 # W # Sollwert für physikalische Lade-/Entladeleistung
+
+
         self.E_bat_max = 76000 # kWh
-        self.P_BSS_sum = 0
         self.SoC = 50
         self.efficiency = 0.85
         self.P_BSS_max = 65000 # W
@@ -55,9 +58,10 @@ class BSS_dummy(Thread):
     def run(self):
         while True:
             time.sleep(1)
-            self.E_bat_sum = round(sum(WE.E_bat_v for WE in Wohneinheiten),2)
-            self.P_BSS_sum = round(sum(WE.P_bat_v for WE in Wohneinheiten),1)
-            self.SoC = round((self.E_bat_sum/self.E_bat_max)*100,1)
+            self.E_bat_device = round(sum(WE.E_bat_v for WE in Wohneinheiten),1)
+            self.P_BSS_device = round(sum(WE.P_bat_v for WE in Wohneinheiten),1)
+            self.SoC = round((self.E_bat_device/self.E_bat_max)*100,1)
+
 class Database(Thread):
     def __init__(self):
         super().__init__()
@@ -65,15 +69,19 @@ class Database(Thread):
     def Momentanwertdatenbank(self):
         global P_load_sum
         global P_pv_sum
+        global Timestamp
         path = 'MomentanwertDB_sim2.db'
-        timestamp = datetime.datetime.now()
-        Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
+        timestamp = datetime.now(timezone.utc)
+        local_time= timestamp.astimezone(pytz.timezone('Europe/Berlin'))
+        Timestamp = str(local_time.strftime("%d-%m-%Y %H:%M:%S UTC%z"))
+        #Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
         P_load_sum = round(sum(WE.P_load_v for WE in Wohneinheiten),1)
         P_Netz_sum = round(sum(WE.P_Netz_v for WE in Wohneinheiten),1)
         P_pv_sum = round(sum(WE.P_pv_v for WE in Wohneinheiten),1)
         P_Wallbox_sum = 0
         value_list = [
-                    (Timestamp,'Geraetewerte',BSS.E_bat_sum,BSS.SoC,BSS.P_BSS_sum,P_load_sum, P_Wallbox_sum,P_pv_sum, P_Netz_sum),
+                    (Timestamp,'Geraetewerte',BSS.E_bat_device,BSS.SoC,BSS.P_BSS_device,P_load_sum, P_Wallbox_sum,P_pv_sum, P_Netz_sum),
+                    (Timestamp,'Rechenwerte',WE1.E_bat_sum,BSS.SoC,WE1.P_BSS_sum,P_load_sum, P_Wallbox_sum,P_pv_sum, P_Netz_sum),
                     (Timestamp,WE1.Wohneinheit, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_v, WE1.P_Netz_v),
                     (Timestamp,WE2.Wohneinheit, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_v, WE2.P_Netz_v),
                     (Timestamp,WE3.Wohneinheit, round(WE3.E_bat_v,2), WE3.SoC_v, WE3.P_bat_v, WE3.P_load_v, WE3.P_Wallbox, WE3.P_pv_v, WE3.P_Netz_v),
@@ -101,24 +109,23 @@ class Database(Thread):
                       ]
         conSQ = sqlite3.connect(path)
         curSQ = conSQ.cursor()
-        curSQ.execute("CREATE TABLE IF NOT EXISTS Tabelle1 "
-                      "(Timestamp text, name text PRIMARY KEY,E_bat real, SoC real,P_BSS real, P_Last real, P_Wallbox real,P_PV real, P_Netz real)")
-        curSQ.executemany("INSERT OR REPLACE INTO Tabelle1 "
-                          "(Timestamp, name, E_bat, SoC,P_BSS, P_Last, P_Wallbox,P_PV, P_Netz) VALUES (?,?,?,?,?,?,?,?,?)",(value_list))
+        curSQ.execute("CREATE TABLE IF NOT EXISTS Tabelle2 "
+                      "(Timestamp text, Name text PRIMARY KEY,E_BSS real, SoC real,P_BSS real, P_Last real, P_Wallbox real,P_PV real, P_Netz real)")
+        curSQ.executemany("INSERT OR REPLACE INTO Tabelle2 "
+                          "(Timestamp, Name, E_BSS, SoC,P_BSS, P_Last, P_Wallbox,P_PV, P_Netz) VALUES (?,?,?,?,?,?,?,?,?)",(value_list))
         conSQ.commit()
-        for row in curSQ.execute("SELECT * FROM Tabelle1"):
+        for row in curSQ.execute("SELECT * FROM Tabelle2"):
             row
 
     def CSV_Daten(self):
-        timestamp = datetime.datetime.now()
-        Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
-        month = str(timestamp.strftime("%b%Y"))
+        time = datetime.now()
+        month = str(time.strftime("%b%Y"))
 
         path2 = 'CSV_Datenbank\data_' + month + '_sim1.db'
 
-        csv_list_we1 = [Timestamp, WE1.E_bat_v, WE1.SoC_v,WE1.P_bat_v,WE1.P_load_v,WE1.P_Wallbox,WE1.P_pv_v,WE1.P_Netz_v]
-        csv_list_we2 = [Timestamp, WE2.E_bat_v, WE2.SoC_v,WE2.P_bat_v,WE2.P_load_v,WE2.P_Wallbox,WE2.P_pv_v,WE2.P_Netz_v]
-        csv_list_we3 = [Timestamp, WE3.E_bat_v, WE3.SoC_v,WE3.P_bat_v,WE3.P_load_v,WE3.P_Wallbox,WE3.P_pv_v,WE3.P_Netz_v]
+        csv_list_we1 = [Timestamp, round(WE1.E_bat_v,2), WE1.SoC_v,WE1.P_bat_v,WE1.P_load_v,WE1.P_Wallbox,WE1.P_pv_v,WE1.P_Netz_v]
+        csv_list_we2 = [Timestamp, round(WE2.E_bat_v,2), WE2.SoC_v,WE2.P_bat_v,WE2.P_load_v,WE2.P_Wallbox,WE2.P_pv_v,WE2.P_Netz_v]
+        csv_list_we3 = [Timestamp, round(WE3.E_bat_v,2), WE3.SoC_v,WE3.P_bat_v,WE3.P_load_v,WE3.P_Wallbox,WE3.P_pv_v,WE3.P_Netz_v]
 
         connectSQ = sqlite3.connect(path2)
         cursorSQ = connectSQ.cursor()
@@ -176,15 +183,17 @@ class Database(Thread):
             data.Momentanwertdatenbank()
             #data.CSV_Daten()
             data.read_Handelsstatus()
-            time.sleep(0.45)
+            time.sleep(5)
 
 
 class BSS_virtuell(Thread):
-    def __init__(self,Wohneinheit,E_bat_v,load_offset):
+    def __init__(self,Wohneinheit,load_offset):
         super().__init__()
         self.Wohneinheit = Wohneinheit
         self.P_bat_v = 0
-        self.E_bat_v = E_bat_v
+        self.E_bat_v = (BSS.E_bat_device/24)
+        self.E_bat_sum = 35000 # initial value
+        self.P_BSS_sum = 0
         self.dE_v = 0
         self.P_load_v = 0
         self.load_offset = load_offset
@@ -220,7 +229,7 @@ class BSS_virtuell(Thread):
 
     def strategy1_ueberschussladen(self):
         self.P_load_v = (P_Last * self.load_offset)
-        self.dE_v = (-self.P_load_v + self.P_pv_v) * (1/3600) * BSS.efficiency #Wandlungs- und Ladeverluste ~15%
+        self.dE_v = (-self.P_load_v + self.P_pv_v) * (1/3600) * BSS.efficiency
         self.SoC_v = round(((self.E_bat_v/self.E_bat_v_max)*100),1)
 
         if self.E_bat_v + self.dE_v <= 158:
@@ -236,21 +245,24 @@ class BSS_virtuell(Thread):
 
         else:
             self.E_bat_v = self.E_bat_v + self.dE_v
-            self.P_bat_v = self.P_load_v - self.P_pv_v       # bei PV-Überschuss negativer Wert -> Speicher laden!
+            self.P_bat_v = round(self.P_load_v - self.P_pv_v,2)       # bei PV-Überschuss negativer Wert -> Speicher laden!
             self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
 
-            #print('HANDELSSTATUS',self.Wohneinheit,'->',self.Handelsstatus)    # print-Ausgabe für jede WE
+        self.E_bat_sum = round(sum(WE.E_bat_v for WE in Wohneinheiten),1)
+        self.P_BSS_sum = round(sum(WE.P_bat_v for WE in Wohneinheiten),1)
 
 
     def run(self):  # AUFRUF DER BETRIEBSSTRATEGIE
+        print('EMS in Ausführung!')
         while True:
             try:
                 for WE in Wohneinheiten:
                     WE.Energiehandel()
                     WE.strategy1_ueberschussladen()
 
-                print('Summierte Werte -> P_BSS_sum =',BSS.P_BSS_sum,'W ---> P_load_sum =',P_load_sum,'W ---> P_pv_sum =',P_pv_sum,'W ---> Simulierter Zeitstempel ---',Timestamp_sim)
+                #print('Summierte Werte -> P_BSS_sum =',WE1.P_BSS_sum,'W ---> P_load_sum =',P_load_sum,'W ---> P_pv_sum =',P_pv_sum,'W ---> Simulierter Zeitstempel ---',Timestamp_sim)
                 #print('Kontrollrechnung --> WE 1: E_bat =',round(WE1.E_bat_v,4),'Wh --> P_BSS_v =',WE1.P_bat_v,'W --> dE =',WE1.dE_v,'Wh')
+                print('')
 
             except NameError as err:
                 print('NameError --->',str(err))
@@ -264,30 +276,30 @@ PV = PV_dummy()
 Last = Last_dummy()
 data = Database()
 
-WE1 = BSS_virtuell('WE1',2500.6,0.5)  #WE, E_bat_v, load_offset
-WE2 = BSS_virtuell('WE2',1000.6,0.4)
-WE3 = BSS_virtuell('WE3',3000.6,0.3)
-WE4 = BSS_virtuell('WE4',1900,0.35)
-WE5 = BSS_virtuell('WE5',1000,0.45)
-WE6 = BSS_virtuell('WE6',2500,0.37)
-WE7 = BSS_virtuell('WE7',1900,0.29)
-WE8 = BSS_virtuell('WE8',1000,0.3)
-WE9 = BSS_virtuell('WE9',1400,0.6)
-WE10 = BSS_virtuell('WE10',1900,0.55)
-WE11 = BSS_virtuell('WE11',1000,0.39)
-WE12 = BSS_virtuell('WE12',1800,0.44)
-WE13 = BSS_virtuell('WE13',1900,0.3)
-WE14 = BSS_virtuell('WE14',1000,0.4)
-WE15 = BSS_virtuell('WE15',1200,0.5)
-WE16 = BSS_virtuell('WE16',1900,0.25)
-WE17 = BSS_virtuell('WE17',1000,0.33)
-WE18 = BSS_virtuell('WE18',900,0.45)
-WE19 = BSS_virtuell('WE19',1900,0.35)
-WE20 = BSS_virtuell('WE20',1000,0.45)
-WE21 = BSS_virtuell('WE21',1000,0.35)
-WE22 = BSS_virtuell('WE22',1100,0.38)
-WE23 = BSS_virtuell('WE23',1900,0.37)
-WE24 = BSS_virtuell('WE24',1000,0.39)
+WE1 = BSS_virtuell('WE1',0.5)  #WE, E_bat_v, load_offset
+WE2 = BSS_virtuell('WE2',0.4)
+WE3 = BSS_virtuell('WE3',0.3)
+WE4 = BSS_virtuell('WE4',0.35)
+WE5 = BSS_virtuell('WE5',0.45)
+WE6 = BSS_virtuell('WE6',0.37)
+WE7 = BSS_virtuell('WE7',0.29)
+WE8 = BSS_virtuell('WE8',0.3)
+WE9 = BSS_virtuell('WE9',0.6)
+WE10 = BSS_virtuell('WE10',0.55)
+WE11 = BSS_virtuell('WE11',0.39)
+WE12 = BSS_virtuell('WE12',0.44)
+WE13 = BSS_virtuell('WE13',0.3)
+WE14 = BSS_virtuell('WE14',0.4)
+WE15 = BSS_virtuell('WE15',0.5)
+WE16 = BSS_virtuell('WE16',0.25)
+WE17 = BSS_virtuell('WE17',0.33)
+WE18 = BSS_virtuell('WE18',0.45)
+WE19 = BSS_virtuell('WE19',0.35)
+WE20 = BSS_virtuell('WE20',0.45)
+WE21 = BSS_virtuell('WE21',0.35)
+WE22 = BSS_virtuell('WE22',0.38)
+WE23 = BSS_virtuell('WE23',0.37)
+WE24 = BSS_virtuell('WE24',0.39)
 Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
                  WE13, WE14, WE15, WE16, WE17, WE18, WE19, WE20, WE21, WE22, WE23, WE24]
 
