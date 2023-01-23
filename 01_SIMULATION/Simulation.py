@@ -16,7 +16,7 @@ class PV_dummy(Thread):
         P_pv = 0
         Timestamp_sim = 0
 
-        csv_file = open('PV_csv\PV_2021-03-23_06.00.00_to_23.59.59_cloudy.csv',newline='')
+        csv_file = open('PV_csv\PV_2021-03-30_06.00.00_to_23.59.59_sunny.csv',newline='')
         pv_profile = csv.DictReader(csv_file,delimiter=',')
         for row in pv_profile:
             if row['P_TOTAL'] == '':
@@ -46,7 +46,7 @@ class Last_dummy(Thread):
 class BSS_dummy(Thread):
     def __init__(self):
         super().__init__()
-        self.E_bat_device = 25000 # Wh
+        self.E_bat_device = 3850 # Wh
         self.P_BSS_device = 0 # W # Sollwert für physikalische Lade-/Entladeleistung
         self.delta_E = 0
 
@@ -291,25 +291,50 @@ class BSS_virtuell(Thread):
 
         if BSS.E_bat_device <= BSS.E_bat_min:
             'Tiefenentladungsschutz, phy. Bat kann niemals unter SoC = 5%'
-            self.P_bat_v = -100 - self.P_pv_v
-            self.dE_v = (-self.P_bat_v/3600) * BSS.efficiency
-            self.P_Netz_v = self.P_load_v - self.P_bat_v
-            self.E_bat_v = self.E_bat_v + self.dE_v
+            if BSS.E_bat_device <= 3650: # Aufrechterhaltung ab SoC = 4,8%
+                self.P_bat_v = -50 - self.P_pv_v # Alle WE laden mit 50 W um SoC = 5% aufrecht zu erhalten
+                self.dE_v = (-self.P_bat_v/3600) * BSS.efficiency
+                self.P_Netz_v = self.P_load_v - self.P_bat_v
+                self.E_bat_v = self.E_bat_v + self.dE_v
+
+            elif P_pv_sum >= P_load_sum:
+                self.E_bat_v = self.E_bat_v + self.dE_v
+                self.P_bat_v = round(self.P_load_v - self.P_pv_v,2)
+                self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+
+            elif P_pv_sum < P_load_sum:
+                self.P_bat_v = 0
+                self.P_Netz_v = self.P_load_v - self.P_pv_v
+
+
         elif self.E_bat_v <= self.E_bat_v_min:
-            self.P_bat_v = 0 - self.P_pv_v
-            self.P_Netz_v = self.P_load_v
-            self.dE_v = (-self.P_bat_v / 3600) * BSS.efficiency
-            self.E_bat_v = self.E_bat_v + self.dE_v
+            'Wohneinheiten können ihre virtuelle Speicherscheibe nicht unter SoC = 5% entladen'
+            'Konfiguration:  PV-Leistung geht auch bei SoC = 5% erst in die Lastabdeckung, dann in BSS-Ladung'
+            if self.P_pv_v >= self.P_load_v:
+                self.E_bat_v = self.E_bat_v + self.dE_v
+                self.P_bat_v = round(self.P_load_v - self.P_pv_v,2)
+                self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+
+            elif self.P_pv_v < self.P_load_v:
+                self.P_bat_v = 0
+                self.P_Netz_v = self.P_load_v - self.P_pv_v
+
+            # self.P_bat_v = 0 - self.P_pv_v
+            # self.P_Netz_v = self.P_load_v
+            # self.dE_v = (-self.P_bat_v / 3600) * BSS.efficiency
+            # self.E_bat_v = self.E_bat_v + self.dE_v
 
         elif self.E_bat_v + self.dE_v >= self.E_bat_v_max:  #SoC=100%
+            'Virtueller Speicher ist voll'
             #print('Energiekonto von',self.Wohneinheit, 'ist voll, setze Ladeleistung P_bat = 0')
             self.P_bat_v = 0
             self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
 
         else:
+            'Normalbetrieb: PV-Überschussladen'
             self.E_bat_v = self.E_bat_v + self.dE_v
             self.P_bat_v = round(self.P_load_v - self.P_pv_v,2)       # bei PV-Überschuss negativer Wert -> Speicher laden!
-            self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+            self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v # PV-Überschuss und Ladeleistung BSS gleichen sich im Normalbetrieb aus
 
         self.E_bat_sum = round(sum(WE.E_bat_v for WE in Wohneinheiten),1)
         self.P_BSS_sum = round(sum(WE.P_bat_v for WE in Wohneinheiten),1)
@@ -325,6 +350,7 @@ class BSS_virtuell(Thread):
 
                 #print('Summierte Werte -> P_BSS_sum =',WE1.P_BSS_sum,'W ---> P_load_sum =',P_load_sum,'W ---> P_pv_sum =',P_pv_sum,'W ---> Simulierter Zeitstempel ---',Timestamp_sim)
                 #print('Kontrollrechnung --> WE 1: E_bat =',round(WE1.E_bat_v,4),'Wh --> P_BSS_v =',WE1.P_bat_v,'W --> dE =',WE1.dE_v,'Wh')
+
                 print('Simulierter Zeitstempel ->',Timestamp_sim)
 
             except NameError as err:
