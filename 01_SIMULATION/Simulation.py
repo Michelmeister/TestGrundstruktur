@@ -64,7 +64,7 @@ class BSS_dummy(Thread):
         self.P_BSS_device = 0 # W # Sollwert für physikalische Lade-/Entladeleistung
         self.delta_E = 0
 
-        self.E_bat_max = 76000 # Wh
+        self.E_bat_max = 67000 # Wh
         self.E_bat_min = 3800 # Untere Entladegrenze SoC = 5%
         self.SoC = 50
         self.efficiency = 0.85
@@ -218,7 +218,7 @@ class Handelstabelle(Thread):
         super().__init__()
 
     def read_Handelsstatus(self):
-        conn = sqlite3.connect('marketDB_sim.db')
+        conn = sqlite3.connect('marketDB.db')
         cc = conn.cursor()
         cc.execute('SELECT * FROM MarktTabelle')
         value = cc.fetchall()
@@ -254,13 +254,54 @@ class Handelstabelle(Thread):
             Handel.read_Handelsstatus()
             #print(WE4.PV_Handelsstatus)
 
+class Melani_Participation(Thread):
+    def __init__(self):
+        super().__init__()
+
+    def read_Participation_status(self):
+        conn = sqlite3.connect('Teilnehmerliste.db')
+        cc = conn.cursor()
+        cc.execute('SELECT * FROM Teilnehmer')
+        value = cc.fetchall()
+
+        WE1.Participation_status = value[1][1]
+        WE2.Participation_status = value[2][1]
+        WE3.Participation_status = value[3][1]
+        WE4.Participation_status = value[4][1]
+        WE5.Participation_status = value[5][1]
+        WE6.Participation_status = value[6][1]
+        WE7.Participation_status = value[7][1]
+        WE8.Participation_status = value[8][1]
+        WE9.Participation_status = value[9][1]
+        WE10.Participation_status = value[10][1]
+        WE11.Participation_status = value[11][1]
+        WE12.Participation_status = value[12][1]
+        WE13.Participation_status = value[13][1]
+        WE14.Participation_status = value[14][1]
+        WE15.Participation_status = value[15][1]
+        WE16.Participation_status = value[16][1]
+        WE17.Participation_status = value[17][1]
+        WE18.Participation_status = value[18][1]
+        WE19.Participation_status = value[19][1]
+        WE20.Participation_status = value[20][1]
+        WE21.Participation_status = value[21][1]
+        WE22.Participation_status = value[22][1]
+        WE23.Participation_status = value[23][1]
+        WE24.Participation_status = value[24][1]
+
+    def run(self):
+        while True:
+            Participation.read_Participation_status()
+            #print(WE1.Wohneinheit,'Participation_Status = ',WE1.Participation_status)
+            time.sleep(1)
+
 class BSS_virtuell(Thread):
     def __init__(self,Wohneinheit,load_offset):
         super().__init__()
         self.Wohneinheit = Wohneinheit
         self.P_bat_v = 0
         self.E_bat_v = (BSS.E_bat_device/24)
-        self.E_bat_v_max = 3167
+        self.E_bat_v_max = 2791.5
         self.E_bat_v_min = 158
         self.E_bat_sum = 35000 # initial value
         self.P_BSS_sum = 0
@@ -277,28 +318,30 @@ class BSS_virtuell(Thread):
         self.P_Residual_phy = 0
         self.P_Residual_v = 0
         self.countWE = 0
+        self.Participation_status = 1
+        self.Melani_NTn_count = 0
 
     def set_SOP(self):
 
-        if self.PV_Handelsstatus == 'PV_F0':
+        if self.PV_Handelsstatus == '0':
             self.P_pv_v = 0
-        elif self.PV_Handelsstatus == 'PV_F2':
+        elif self.PV_Handelsstatus == '2':
             self.P_pv_v = P_pv * 2
-        elif self.PV_Handelsstatus == 'PV_F3':
+        elif self.PV_Handelsstatus == '3':
             self.P_pv_v = P_pv * 3
-        elif self.PV_Handelsstatus == 'PV_F4':
+        elif self.PV_Handelsstatus == '4':
             self.P_pv_v = P_pv * 4
-        elif self.PV_Handelsstatus == 'PV_F5':
+        elif self.PV_Handelsstatus == '5':
             self.P_pv_v = P_pv * 5
-        elif self.PV_Handelsstatus == 'PV_F6':
+        elif self.PV_Handelsstatus == '6':
             self.P_pv_v = P_pv * 6
-        elif self.PV_Handelsstatus == 'PV_F7':
+        elif self.PV_Handelsstatus == '7':
             self.P_pv_v = P_pv * 7
-        elif self.PV_Handelsstatus == 'PV_F8':
+        elif self.PV_Handelsstatus == '8':
             self.P_pv_v = P_pv * 8
         else:
             self.P_pv_v = P_pv
-            # == PV_F1
+            # == 1
 
 
     def calc_parameters(self):
@@ -407,7 +450,21 @@ class BSS_virtuell(Thread):
             self.E_bat_v = self.E_bat_v + self.dE_v
             self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
 
+    def set_NTn_parameters(self):
+        #print(self.Wohneinheit, 'status = ', self.Participation_status)
+        self.P_load_v = (P_Last * self.load_offset)
+        self.P_bat_v = 0
+        self.E_bat_v = 0
+        self.SoC_v = round(((self.E_bat_v / self.E_bat_v_max) * 100), 1)
+        self.P_pv_v = 0
+        self.P_Residual_v = self.P_load_v
+        self.P_Netz_v = self.P_load_v
+
+        self.Melani_NTn_count = 1
+
+
     def run(self):  # AUFRUF DER BETRIEBSSTRATEGIE
+        'STRATEGIEAUFRUF !!!'
         global LISTE
         global P_res_v_emptyWE_sum
         while True:
@@ -417,25 +474,27 @@ class BSS_virtuell(Thread):
                 #print(P_res_v_emptyWE_sum,'SUMME -> ',sum(P_res_v_emptyWE_sum))
 
                 for WE in Wohneinheiten:
-                    WE.set_SOP()            # Setzt aktuellen SOP / Multiplikationsfaktor
-                    WE.calc_parameters()    # Bestimme virtuellen Speicherstand etc.
-
-                    if BSS.E_bat_device <= BSS.E_bat_min:
-                        #print('Strategie: Tiefenentladungsschutz')
-                        WE.strategy_depth_discharge_protection()
-                        continue
-                    elif (P_load_sum - P_pv_sum) - sum(P_res_v_emptyWE_sum) >= BSS.P_BSS_discharge_max:
-                        #print('Strategie: Einladeleistungsbeschränkung')
-                        WE.strategy_P_BSS_discharge_limit()
+                    if WE.Participation_status == 0:
+                        WE.set_NTn_parameters()
                     else:
-                        #print('Strategie: PV-Überschussladen')
-                        WE.strategy_ueberschussladen()
 
+                        WE.set_SOP()            # Setzt aktuellen SOP / Multiplikationsfaktor
+                        WE.calc_parameters()    # Bestimme virtuellen Speicherstand etc.
+
+                        if BSS.E_bat_device <= BSS.E_bat_min:
+                            #print('Strategie: Tiefenentladungsschutz')
+                            WE.strategy_depth_discharge_protection()
+                            continue
+                        elif (P_load_sum - P_pv_sum) - sum(P_res_v_emptyWE_sum) >= BSS.P_BSS_discharge_max:
+                            #print('Strategie: Einladeleistungsbeschränkung')
+                            WE.strategy_P_BSS_discharge_limit()
+                        else:
+                            #print('Strategie: PV-Überschussladen')
+                            WE.strategy_ueberschussladen()
 
 
                 self.P_BSS_sum = round(sum(WE.P_bat_v for WE in Wohneinheiten),1)
                 self.E_bat_sum = round(sum(WE.E_bat_v for WE in Wohneinheiten),1)
-
                 print('Simulierter Zeitstempel -->',Timestamp_sim,'--> P_pv =',P_pv_sum,'W')
 
             except NameError as err:
@@ -445,6 +504,7 @@ class BSS_virtuell(Thread):
 
 
 
+Participation = Melani_Participation()
 BSS = BSS_dummy()
 PV = PV_dummy()
 Last = Last_dummy()
@@ -452,7 +512,7 @@ Momentanwerte = MomentanwertDB()
 Zeitreihe = ZeitreihenDB()
 Handel = Handelstabelle()
 
-WE1 = BSS_virtuell('WE1',0.35)  #WE, E_bat_v, load_offset
+WE1 = BSS_virtuell('WE1',0.35)  #WE,load_offset
 WE2 = BSS_virtuell('WE2',0.8)
 WE3 = BSS_virtuell('WE3',0.45)
 WE4 = BSS_virtuell('WE4',0.3)
@@ -480,6 +540,6 @@ Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
                  WE13, WE14, WE15, WE16, WE17, WE18, WE19, WE20, WE21, WE22, WE23,WE24]
 
 
-concurrentthreads = [PV,Last,BSS,Momentanwerte,WE1,Handel] #Zeitreihe]
+concurrentthreads = [Participation,PV,Last,BSS,Momentanwerte,WE1,Handel] #Zeitreihe]
 for threads in concurrentthreads:
     threads.start()

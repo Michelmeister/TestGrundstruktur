@@ -43,15 +43,28 @@ class Last_dummy(Thread):
             P_Last = (P1+P2+P3)
             #print(row['Timestamp'],'--->',P_Last,'W')
             time.sleep(1)
+class EV_charging_dummy(Thread):
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        global P_EV
+        P_EV = 0
+        csv_EVfile = open('EV_csv/2020-01-06_Monday.csv',newline='')
+        EV_profile = csv.DictReader(csv_EVfile,delimiter=',')
+        for row in EV_profile:
+            P1 = float(row['Load_kW'])
+            #print(row['Timestamp'],'--->',P_Last,'W')
+            time.sleep(1)
 
 class BSS_dummy(Thread):
     def __init__(self):
         super().__init__()
-        self.E_bat_device = 75850 # Wh
+        self.E_bat_device = 38000 # Wh
         self.P_BSS_device = 0 # W # Sollwert für physikalische Lade-/Entladeleistung
         self.delta_E = 0
 
-        self.E_bat_max = 76000 # Wh
+        self.E_bat_max = 67000 # Wh
         self.E_bat_min = 3800 # Untere Entladegrenze SoC = 5%
         self.SoC = 50
         self.efficiency = 0.85
@@ -153,28 +166,48 @@ class ZeitreihenDB(Thread):
 
         path2 = 'ZeitreihenDB\data_' + csv_name + '.db'
 
-        csv_list_we1 = [Timestamp, round(WE1.E_bat_v,2), WE1.SoC_v,WE1.P_bat_v,WE1.P_load_v,WE1.P_Wallbox,WE1.P_pv_v,round(WE1.P_Netz_v,2)]
-        csv_list_we2 = [Timestamp, round(WE2.E_bat_v,2), WE2.SoC_v,WE2.P_bat_v,WE2.P_load_v,WE2.P_Wallbox,WE2.P_pv_v,round(WE2.P_Netz_v,2)]
-        #csv_list_we3 = [time, round(WE3.E_bat_v,2), WE3.SoC_v,WE3.P_bat_v,WE3.P_load_v,WE3.P_Wallbox,WE3.P_pv_v,WE3.P_Netz_v]
+        csv_list_we1 = [Timestamp, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_v, round(WE1.P_Netz_v,2)]
+        csv_list_we2 = [Timestamp, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_v, round(WE2.P_Netz_v,2)]
+        csv_list_we3 = [Timestamp, round(WE3.E_bat_v,2), WE3.SoC_v, WE3.P_bat_v, WE3.P_load_v, WE3.P_Wallbox, WE3.P_pv_v, round(WE3.P_Netz_v,2)]
+        csv_list_we4 = [Timestamp, round(WE4.E_bat_v,2), WE4.SoC_v, WE4.P_bat_v, WE4.P_load_v, WE4.P_Wallbox, WE4.P_pv_v, round(WE4.P_Netz_v,2)]
+        csv_list_we5 = [Timestamp, round(WE5.E_bat_v,2), WE5.SoC_v, WE5.P_bat_v, WE5.P_load_v, WE5.P_Wallbox, WE5.P_pv_v, round(WE5.P_Netz_v,2)]
+        csv_list_we6 = [Timestamp, round(WE6.E_bat_v,2), WE6.SoC_v, WE6.P_bat_v, WE6.P_load_v, WE6.P_Wallbox, WE6.P_pv_v, round(WE6.P_Netz_v,2)]
+        csv_list_we7 = [Timestamp, round(WE7.E_bat_v,2), WE7.SoC_v, WE7.P_bat_v, WE7.P_load_v, WE7.P_Wallbox, WE7.P_pv_v, round(WE7.P_Netz_v,2)]
+        csv_list_we8 = [Timestamp, round(WE8.E_bat_v,2), WE8.SoC_v, WE8.P_bat_v, WE8.P_load_v, WE8.P_Wallbox, WE8.P_pv_v, round(WE8.P_Netz_v,2)]
+        csv_list_we9 = [Timestamp, round(WE9.E_bat_v,2), WE9.SoC_v, WE9.P_bat_v, WE9.P_load_v, WE9.P_Wallbox, WE9.P_pv_v, round(WE9.P_Netz_v,2)]
+        csv_list_we10 = [Timestamp, round(WE10.E_bat_v,2), WE10.SoC_v, WE10.P_bat_v, WE10.P_load_v, WE10.P_Wallbox, WE10.P_pv_v, round(WE10.P_Netz_v,2)]
+        csv_list_we11 = [Timestamp, round(WE11.E_bat_v,2), WE11.SoC_v, WE11.P_bat_v, WE11.P_load_v, WE11.P_Wallbox, WE11.P_pv_v, round(WE11.P_Netz_v,2)]
+        csv_list_we12 = [Timestamp, round(WE12.E_bat_v,2), WE12.SoC_v, WE12.P_bat_v, WE12.P_load_v, WE12.P_Wallbox, WE12.P_pv_v, round(WE12.P_Netz_v,2)]
+        csv_list_we13 = [Timestamp, round(WE13.E_bat_v,2), WE13.SoC_v, WE13.P_bat_v, WE13.P_load_v, WE13.P_Wallbox, WE13.P_pv_v, round(WE13.P_Netz_v,2)]
+        csv_list_we14 = [Timestamp, round(WE14.E_bat_v,2), WE14.SoC_v, WE14.P_bat_v, WE14.P_load_v, WE14.P_Wallbox, WE14.P_pv_v, round(WE14.P_Netz_v,2)]
+        csv_list_we15 = [Timestamp, round(WE15.E_bat_v,2), WE15.SoC_v, WE15.P_bat_v, WE15.P_load_v, WE15.P_Wallbox, WE15.P_pv_v, round(WE15.P_Netz_v,2)]
+        csv_list_we16 = [Timestamp, round(WE16.E_bat_v,2), WE16.SoC_v, WE16.P_bat_v, WE16.P_load_v, WE16.P_Wallbox, WE16.P_pv_v, round(WE16.P_Netz_v,2)]
+        csv_list_we17 = [Timestamp, round(WE17.E_bat_v,2), WE17.SoC_v, WE17.P_bat_v, WE17.P_load_v, WE17.P_Wallbox, WE17.P_pv_v, round(WE17.P_Netz_v,2)]
+        csv_list_we18 = [Timestamp, round(WE18.E_bat_v,2), WE18.SoC_v, WE18.P_bat_v, WE18.P_load_v, WE18.P_Wallbox, WE18.P_pv_v, round(WE18.P_Netz_v,2)]
+        csv_list_we19 = [Timestamp, round(WE19.E_bat_v,2), WE19.SoC_v, WE19.P_bat_v, WE19.P_load_v, WE19.P_Wallbox, WE19.P_pv_v, round(WE19.P_Netz_v,2)]
+        csv_list_we20 = [Timestamp, round(WE20.E_bat_v,2), WE20.SoC_v, WE20.P_bat_v, WE20.P_load_v, WE20.P_Wallbox, WE20.P_pv_v, round(WE20.P_Netz_v,2)]
+        csv_list_we21 = [Timestamp, round(WE21.E_bat_v,2), WE21.SoC_v, WE21.P_bat_v, WE21.P_load_v, WE21.P_Wallbox, WE21.P_pv_v, round(WE21.P_Netz_v,2)]
+        csv_list_we22 = [Timestamp, round(WE22.E_bat_v,2), WE22.SoC_v, WE22.P_bat_v, WE22.P_load_v, WE22.P_Wallbox, WE22.P_pv_v, round(WE22.P_Netz_v,2)]
+        csv_list_we23 = [Timestamp, round(WE23.E_bat_v,2), WE23.SoC_v, WE23.P_bat_v, WE23.P_load_v, WE23.P_Wallbox, WE23.P_pv_v, round(WE23.P_Netz_v,2)]
+        csv_list_we24 = [Timestamp, round(WE24.E_bat_v,2), WE24.SoC_v, WE24.P_bat_v, WE24.P_load_v, WE24.P_Wallbox, WE24.P_pv_v, round(WE24.P_Netz_v,2)]
 
         connectSQ = sqlite3.connect(path2)
         cursorSQ = connectSQ.cursor()
-        cursorSQ.execute("CREATE TABLE IF NOT EXISTS WE1_sim1 "
-                      "(Timestamp text PRIMARY KEY ,E_Bat real, SoC real,P_BSS real,P_Last real, P_Wallbox real, P_pv real,P_Netz real)")
-        cursorSQ.execute("CREATE TABLE IF NOT EXISTS WE2_sim1 "
-                      "(Timestamp text PRIMARY KEY ,E_Bat real, SoC real,P_BSS real,P_Last real, P_Wallbox real, P_pv real,P_Netz real)")
 
+        WE_list = [csv_list_we1,csv_list_we2,csv_list_we3,csv_list_we4,csv_list_we5,csv_list_we6,csv_list_we7,csv_list_we8,csv_list_we9,csv_list_we10,
+                   csv_list_we11,csv_list_we12,csv_list_we13,csv_list_we14,csv_list_we15,csv_list_we16,csv_list_we17,csv_list_we18,csv_list_we19,csv_list_we20,csv_list_we21,csv_list_we22,csv_list_we23,csv_list_we24]
 
-        cursorSQ.execute("INSERT OR IGNORE INTO WE1_sim1 "
-                          "(Timestamp ,E_Bat, SoC,P_BSS,P_Last, P_Wallbox, P_pv,P_Netz) VALUES (?,?,?,?,?,?,?,?)",(csv_list_we1))
-        cursorSQ.execute("INSERT OR IGNORE INTO WE2_sim1 "
-                          "(Timestamp ,E_Bat, SoC,P_BSS,P_Last, P_Wallbox, P_pv,P_Netz) VALUES (?,?,?,?,?,?,?,?)",(csv_list_we2))
-
-        connectSQ.commit()
-        for row in cursorSQ.execute("SELECT * FROM WE1_sim1"):
-            row
-        for row in cursorSQ.execute("SELECT * FROM WE2_sim1"):
-            row
+        #Idee: Wohneinheiten einzeln rausnehmen können!
+        for i in range(24):
+            cursorSQ.execute(f"CREATE TABLE IF NOT EXISTS WE{i+1}_sim1 "
+                             "(Timestamp text PRIMARY KEY ,E_Bat real, SoC real,P_BSS real,P_Last real, P_Wallbox real, P_pv real,P_Netz real)")
+        for i in range(24):
+            cursorSQ.execute(f"INSERT OR IGNORE INTO WE{i+1}_sim1 "
+                             "(Timestamp ,E_Bat, SoC,P_BSS,P_Last, P_Wallbox, P_pv,P_Netz) VALUES (?,?,?,?,?,?,?,?)",(WE_list[i]))
+        for i in range(24):
+            connectSQ.commit()
+            for row in cursorSQ.execute(f"SELECT * FROM WE{i+1}_sim1"):
+                row
 
     def run(self):
         while True:
@@ -185,7 +218,7 @@ class Handelstabelle(Thread):
         super().__init__()
 
     def read_Handelsstatus(self):
-        conn = sqlite3.connect('marketDB_sim.db')
+        conn = sqlite3.connect('marketDB.db')
         cc = conn.cursor()
         cc.execute('SELECT * FROM MarktTabelle')
         value = cc.fetchall()
@@ -244,28 +277,30 @@ class BSS_virtuell(Thread):
         self.P_Residual_phy = 0
         self.P_Residual_v = 0
         self.countWE = 0
+        self.Melani_Participation = 1
+        self.Melani_NTn_count = 0
 
     def set_SOP(self):
 
-        if self.PV_Handelsstatus == 'PV_F0':
+        if self.PV_Handelsstatus == '0':
             self.P_pv_v = 0
-        elif self.PV_Handelsstatus == 'PV_F2':
+        elif self.PV_Handelsstatus == '2':
             self.P_pv_v = P_pv * 2
-        elif self.PV_Handelsstatus == 'PV_F3':
+        elif self.PV_Handelsstatus == '3':
             self.P_pv_v = P_pv * 3
-        elif self.PV_Handelsstatus == 'PV_F4':
+        elif self.PV_Handelsstatus == '4':
             self.P_pv_v = P_pv * 4
-        elif self.PV_Handelsstatus == 'PV_F5':
+        elif self.PV_Handelsstatus == '5':
             self.P_pv_v = P_pv * 5
-        elif self.PV_Handelsstatus == 'PV_F6':
+        elif self.PV_Handelsstatus == '6':
             self.P_pv_v = P_pv * 6
-        elif self.PV_Handelsstatus == 'PV_F7':
+        elif self.PV_Handelsstatus == '7':
             self.P_pv_v = P_pv * 7
-        elif self.PV_Handelsstatus == 'PV_F8':
+        elif self.PV_Handelsstatus == '8':
             self.P_pv_v = P_pv * 8
         else:
             self.P_pv_v = P_pv
-            # == PV_F1
+            # == 1
 
 
     def calc_parameters(self):
@@ -360,14 +395,12 @@ class BSS_virtuell(Thread):
 
             elif (self.P_load_v - self.P_pv_v) >= self.P_bat_v_max:
                 'Leistungsüberschreitende WE werden gedrosselt'
-                P_BSS_Mehrbedarf = (self.P_Residual_phy - sum(P_res_v_emptyWE_sum)) - BSS.P_BSS_discharge_max
-                # P_BSS_Mehrbedarf ermittelt den Leistungsbedarf, welcher über die maximale Entladeleistung des BSS hinausgeht (Netzbezugsbedarf)
+                P_BSS_Mehrbedarf = (self.P_Residual_phy - sum(P_res_v_emptyWE_sum)) - BSS.P_BSS_discharge_max # Ermittelt nötigen Netzbezug
                 self.countWE = 1
                 countWE_sum = sum(WE.countWE for WE in Wohneinheiten)
-                P_AbzugsleistungProWE = (P_BSS_Mehrbedarf / countWE_sum) * 1.3  # 1.15 als Sicherheitsfaktor
-                #print(countWE_sum)
+                P_AbzugsleistungProWE = (P_BSS_Mehrbedarf / countWE_sum) * 1.5  # 1.15 als Sicherheitsfaktor
 
-                if ((self.P_load_v - self.P_pv_v) - P_AbzugsleistungProWE) <= self.P_bat_v_max:           # Soll nicht unter 2,7 kW Grenze gedrosselt werden
+                if ((self.P_load_v - self.P_pv_v) - P_AbzugsleistungProWE) <= self.P_bat_v_max: # Soll nicht unter 2,7 kW Grenze gedrosselt werden
                     self.P_bat_v = round(self.P_bat_v_max,1)
                 else:
                     self.P_bat_v = round((self.P_load_v - self.P_pv_v) - P_AbzugsleistungProWE,1)
@@ -384,8 +417,6 @@ class BSS_virtuell(Thread):
                 P_res_v_emptyWE_sum = []
                 P_res_v_emptyWE_sum = [W.P_Residual_v for W in Wohneinheiten if W.P_bat_v == 0]
                 #print(P_res_v_emptyWE_sum,'SUMME -> ',sum(P_res_v_emptyWE_sum))
-
-
 
                 for WE in Wohneinheiten:
                     WE.set_SOP()            # Setzt aktuellen SOP / Multiplikationsfaktor
@@ -423,21 +454,21 @@ Momentanwerte = MomentanwertDB()
 Zeitreihe = ZeitreihenDB()
 Handel = Handelstabelle()
 
-WE1 = BSS_virtuell('WE1',0.15)  #WE, E_bat_v, load_offset
-WE2 = BSS_virtuell('WE2',0.2)
-WE3 = BSS_virtuell('WE3',15)
-WE4 = BSS_virtuell('WE4',15)
-WE5 = BSS_virtuell('WE5',15)
-WE6 = BSS_virtuell('WE6',15)
-WE7 = BSS_virtuell('WE7',15)
-WE8 = BSS_virtuell('WE8',15)
-WE9 = BSS_virtuell('WE9',15)
-WE10 = BSS_virtuell('WE10',15)
-WE11 = BSS_virtuell('WE11',15)
-WE12 = BSS_virtuell('WE12',15)
-WE13 = BSS_virtuell('WE13',15)
-WE14 = BSS_virtuell('WE14',15)
-WE15 = BSS_virtuell('WE15',15)
+WE1 = BSS_virtuell('WE1',0.35)  #WE,load_offset
+WE2 = BSS_virtuell('WE2',0.8)
+WE3 = BSS_virtuell('WE3',0.45)
+WE4 = BSS_virtuell('WE4',0.3)
+WE5 = BSS_virtuell('WE5',0.65)
+WE6 = BSS_virtuell('WE6',0.55)
+WE7 = BSS_virtuell('WE7',0.47)
+WE8 = BSS_virtuell('WE8',0.33)
+WE9 = BSS_virtuell('WE9',0.75)
+WE10 = BSS_virtuell('WE10',0.39)
+WE11 = BSS_virtuell('WE11',0.66)
+WE12 = BSS_virtuell('WE12',0.31)
+WE13 = BSS_virtuell('WE13',0.85)
+WE14 = BSS_virtuell('WE14',0.69)
+WE15 = BSS_virtuell('WE15',1.0)
 WE16 = BSS_virtuell('WE16',0.25)
 WE17 = BSS_virtuell('WE17',0.33)
 WE18 = BSS_virtuell('WE18',0.8)
@@ -451,6 +482,6 @@ Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
                  WE13, WE14, WE15, WE16, WE17, WE18, WE19, WE20, WE21, WE22, WE23,WE24]
 
 
-concurrentthreads = [PV,Last,BSS,Momentanwerte,WE1,Handel] #Zeitreihe]
+concurrentthreads = [PV,Last,BSS,Momentanwerte,WE1,Handel,Zeitreihe]
 for threads in concurrentthreads:
     threads.start()

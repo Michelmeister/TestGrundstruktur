@@ -189,3 +189,5 @@ class NaturstromAPI:
 
 
 NaturstromAPI.get_api_housingunits_GetAll()
+
+
