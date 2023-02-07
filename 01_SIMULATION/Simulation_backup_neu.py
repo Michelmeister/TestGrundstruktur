@@ -4,11 +4,13 @@ import csv
 from datetime import datetime,timezone
 import pytz
 import sqlite3
+import os
 
 #########
 P_load_sum = 0
 P_pv_sum = 0
 P_Wallbox_sum = 0
+NTn_count_sum = 0
 #########
 class PV_dummy(Thread):
     def __init__(self):
@@ -27,7 +29,7 @@ class PV_dummy(Thread):
                 pass
             else:
                 P_tot = float(row['P_TOTAL'])
-                P_pv = round((48/7) * P_tot) # W
+                P_pv = round((48/7) * P_tot) # W, Skalierung von 7 auf 48 kWp
                 #print(P_pv)
             Timestamp_sim = (row['Timestamp'])
             time.sleep(1)
@@ -111,13 +113,13 @@ class Last_dummy(Thread):
             WE2.P_load_v = p_last_list[1] * 0.45
             WE3.P_load_v = p_last_list[2] * 0.65
             WE4.P_load_v = p_last_list[3] * 0.75
-            WE5.P_load_v = p_last_list[4] * 0.35
+            WE5.P_load_v = p_last_list[4] * 0.85
             WE6.P_load_v = p_last_list[5] * 0.45
             WE7.P_load_v = p_last_list[6] * 0.55
             WE8.P_load_v = p_last_list[7] * 0.65
             WE9.P_load_v = p_last_list[8] * 0.75
-            WE10.P_load_v = p_last_list[9] * 0.25
-            WE11.P_load_v = p_last_list[10] * 0.35
+            WE10.P_load_v = p_last_list[9] * 0.35
+            WE11.P_load_v = p_last_list[10] * 0.65
             WE12.P_load_v = p_last_list[11] * 0.45
             WE13.P_load_v = p_last_list[12] * 0.55
             WE14.P_load_v = p_last_list[13] * 0.65
@@ -155,9 +157,9 @@ class EV_charging_dummy(Thread):
         EV_profile6 = csv.DictReader(csv_EVfile6, delimiter=',')
         csv_EVfile7 = open('EV_csv/2020-01-06_Monday_manipuliert.csv', newline='')
         EV_profile7 = csv.DictReader(csv_EVfile7, delimiter=',')
-        csv_EVfile8 = open('EV_csv/2020-01-06_Monday_manipuliert.csv', newline='')
+        csv_EVfile8 = open('EV_csv/2020-01-07_Tuesday_manipuliert.csv', newline='')
         EV_profile8 = csv.DictReader(csv_EVfile8, delimiter=',')
-        csv_EVfile9 = open('EV_csv/2020-01-06_Monday_manipuliert.csv', newline='')
+        csv_EVfile9 = open('EV_csv/2020-01-08_Wednesday_manipuliert.csv', newline='')
         EV_profile9 = csv.DictReader(csv_EVfile9, delimiter=',')
         csv_EVfile10 = open('EV_csv/2020-01-06_Monday_manipuliert.csv', newline='')
         EV_profile10 = csv.DictReader(csv_EVfile10, delimiter=',')
@@ -174,12 +176,13 @@ class EV_charging_dummy(Thread):
             WE13.P_Wallbox = round(P_EV_list[3] * 3) * 1000
             WE17.P_Wallbox = round(P_EV_list[4] * 3) * 1000
             WE18.P_Wallbox = round(P_EV_list[5] * 3) * 1000
+            WE19.P_Wallbox = round(P_EV_list[6] * 3) * 1000
             time.sleep(900)
 
 class BSS_dummy(Thread):
     def __init__(self):
         super().__init__()
-        self.E_bat_device = 38000 # Wh
+        self.E_bat_device = 30000 # Wh
         self.P_BSS_device = 0 # W # Sollwert für physikalische Lade-/Entladeleistung
         self.delta_E = 0
 
@@ -215,15 +218,15 @@ class PV_excess_segment(Thread):
     def __init__(self):
         super().__init__()
         self.P_pv_excess_total = 0
+        self.P_Netz = 0
+
+    def calc_pv_excess(self):
+        self.P_pv_excess_total = (P_pv * (NTn_count_sum/24))
+        print('P_pv_excess =',self.P_pv_excess_total,'W')
 
     def run(self):
         while True:
-            try:
-                self.P_pv_excess_total = (P_pv * (NTn_count_sum/24))
-                print(self.P_pv_excess_total)
-            except Exception as err:
-                self.P_pv_excess_total = 0
-                print('Error Message ---->',str(err))
+            PV_excess.calc_pv_excess()
             time.sleep(1)
 
         # ANMKERUNG: Überschuss evtl. in methode BSS_virtuell aufrufen, um Verzögerungen zu mindern!!!
@@ -273,7 +276,8 @@ class MomentanwertDB(Thread):
                     (Timestamp,WE21.Wohneinheit,round(WE21.E_bat_v,2),WE21.SoC_v,WE21.P_bat_v,WE21.P_load_v,WE21.P_Wallbox,WE21.P_pv_v, round(WE21.P_Netz_v,2)),
                     (Timestamp,WE22.Wohneinheit,round(WE22.E_bat_v,2),WE22.SoC_v,WE22.P_bat_v,WE22.P_load_v,WE22.P_Wallbox,WE22.P_pv_v, round(WE22.P_Netz_v,2)),
                     (Timestamp,WE23.Wohneinheit,round(WE23.E_bat_v,2),WE23.SoC_v,WE23.P_bat_v,WE23.P_load_v,WE23.P_Wallbox,WE23.P_pv_v, round(WE23.P_Netz_v,2)),
-                    (Timestamp,WE24.Wohneinheit,round(WE24.E_bat_v,2),WE24.SoC_v,WE24.P_bat_v,WE24.P_load_v,WE24.P_Wallbox,WE24.P_pv_v, round(WE24.P_Netz_v,2))
+                    (Timestamp,WE24.Wohneinheit,round(WE24.E_bat_v,2),WE24.SoC_v,WE24.P_bat_v,WE24.P_load_v,WE24.P_Wallbox,WE24.P_pv_v, round(WE24.P_Netz_v,2)),
+                    (Timestamp,'PV-Segment',0,0,0,0,0,round(PV_excess.P_pv_excess_total,2), round(PV_excess.P_Netz,2))
                       ]
         conSQ = sqlite3.connect(path)
         curSQ = conSQ.cursor()
@@ -294,13 +298,30 @@ class ZeitreihenDB(Thread):
         super().__init__()
 
     def CSV_Daten(self):
+        global P_load_sum
+        global P_pv_sum
+
+        # Zeitstempel wird erstellt
         time = datetime.now()
-        csv_name = str(time.strftime("%d%b%Y"))
         timestamp = datetime.now(timezone.utc)
-        local_time= timestamp.astimezone(pytz.timezone('Europe/Berlin'))
+        local_time = timestamp.astimezone(pytz.timezone('Europe/Berlin'))
         Timestamp = str(local_time.strftime("%d-%m-%Y %H:%M:%S UTC%z"))
 
-        path2 = 'ZeitreihenDB\data_' + csv_name + '.db'
+        # Ordner- & Dateiname festlegen
+        csv_name = str(time.strftime("%d%b%Y"))
+        directory = str(time.strftime("%Y_%m"))
+        parent_dir = 'ZeitreihenDB'  # muss angepasst werden, je nach dem wo Ordner liegt!
+        path = os.path.join(parent_dir, directory)
+
+        # sucht nach Ordner des aktuellen Monats, falls nicht vorhanden, wird neuer Ordner erstellt
+        try:
+            os.stat(path)
+            #print("Ordner '%s' bereits vorhanden" % directory)
+        except:
+            os.mkdir(path)
+            #print("Ordner '%s' erstellt" % directory)
+
+        path2 = path + '/data_' + csv_name + '.db'
 
         csv_list_we1 = [Timestamp, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_v, round(WE1.P_Netz_v,2)]
         csv_list_we2 = [Timestamp, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_v, round(WE2.P_Netz_v,2)]
@@ -327,6 +348,7 @@ class ZeitreihenDB(Thread):
         csv_list_we23 = [Timestamp, round(WE23.E_bat_v,2), WE23.SoC_v, WE23.P_bat_v, WE23.P_load_v, WE23.P_Wallbox, WE23.P_pv_v, round(WE23.P_Netz_v,2)]
         csv_list_we24 = [Timestamp, round(WE24.E_bat_v,2), WE24.SoC_v, WE24.P_bat_v, WE24.P_load_v, WE24.P_Wallbox, WE24.P_pv_v, round(WE24.P_Netz_v,2)]
 
+        # SQlite-Datenbank wird erstellt
         connectSQ = sqlite3.connect(path2)
         cursorSQ = connectSQ.cursor()
 
@@ -349,6 +371,7 @@ class ZeitreihenDB(Thread):
         while True:
             time.sleep(0.49)
             Zeitreihe.CSV_Daten()
+
 class Handelstabelle(Thread):
     def __init__(self):
         super().__init__()
@@ -491,138 +514,130 @@ class BSS_virtuell(Thread):
         self.P_pv_v = round(self.P_pv_v,2) # Macht nichts außer Wert zu runden -> Achtung, später nur für Anzeige in DB runden, Rechnungswerte werden verfälscht!
 
     def calc_parameters(self):
-        self.P_Residual_phy = P_load_sum - P_pv_sum
-        #self.P_load_v = (P_Last * self.load_offset)
-        self.P_Residual_v = self.P_load_v - self.P_pv_v
+        self.P_Residual_phy = P_load_sum + P_Wallbox_sum - P_pv_sum
+        self.P_Residual_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
         self.E_bat_v = self.E_bat_v - self.Selbstentladung_v
-        self.dE_v = (-self.P_load_v + self.P_pv_v) * (1/3600) * BSS.efficiency
+        self.dE_v = (-self.P_load_v - self.P_Wallbox + self.P_pv_v) * (1/3600) * BSS.efficiency
         self.SoC_v = round(((self.E_bat_v/self.E_bat_v_max)*100),1)
 
     def strategy_ueberschussladen(self):
-
-
         if self.E_bat_v <= self.E_bat_v_min:
             'Entladegrenze virtuell -> SoC = 5%'
             #Konfiguration:  PV-Leistung geht auch bei SoC = 5% erst in die Lastabdeckung, dann in BSS-Ladung
-            if self.P_pv_v >= self.P_load_v:
+            if self.P_pv_v >= self.P_load_v + self.P_Wallbox:
                 self.E_bat_v = self.E_bat_v + self.dE_v
-                self.P_bat_v = round(self.P_load_v - self.P_pv_v,2)
-                self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+                self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
+                self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
-            elif self.P_pv_v < self.P_load_v:
+            elif self.P_pv_v < self.P_load_v + self.P_Wallbox:
                 self.P_bat_v = 0
-                self.P_Netz_v = self.P_load_v - self.P_pv_v
+                self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
 
         elif self.E_bat_v + self.dE_v >= self.E_bat_v_max:  #SoC=100%
             'Virtueller Speicher ist voll'
-            #print('Energiekonto von',self.Wohneinheit, 'ist voll, setze Ladeleistung P_bat = 0')
             self.P_bat_v = 0
-            self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
         else:
             'Normalbetrieb: PV-Überschussladen'
             self.E_bat_v = self.E_bat_v + self.dE_v
-            self.P_bat_v = round(self.P_load_v - self.P_pv_v,2)       # bei PV-Überschuss negativer Wert -> Speicher laden!
-            self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v # PV-Überschuss und Ladeleistung BSS gleichen sich im Normalbetrieb aus
+            self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)       # bei PV-Überschuss negativer Wert -> Speicher laden!
+            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v # PV-Überschuss und Ladeleistung BSS gleichen sich im Normalbetrieb aus
 
 
     def strategy_depth_discharge_protection(self):
         'Entladegrenze physikalisch -> SoC = 5%'
-        #Aufrechterhaltung ab SoC = 4,8%
         if BSS.E_bat_device <= 3650:
+            'Erhaltungsladung ab SoC = 4,8%'
             self.P_bat_v = -25 - self.P_pv_v # Alle WE laden mit 25 W um SoC = 4,8% aufrecht zu erhalten
             self.dE_v = (-self.P_bat_v/3600) * BSS.efficiency
-            self.P_Netz_v = self.P_load_v - self.P_bat_v
+            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_bat_v
             self.E_bat_v = self.E_bat_v + self.dE_v
 
-        elif P_pv_sum >= P_load_sum:
+        elif P_pv_sum >= P_load_sum + P_Wallbox_sum:
             self.E_bat_v = self.E_bat_v + self.dE_v
-            self.P_bat_v = round(self.P_load_v - self.P_pv_v,2)
-            self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+            self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
+            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
         elif P_pv_sum < P_load_sum:
             self.P_bat_v = 0
-            self.P_Netz_v = self.P_load_v - self.P_pv_v
+            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
 
 
     def strategy_P_BSS_discharge_limit(self):
         if self.E_bat_v <= self.E_bat_v_min:
             'Entladegrenze virtuell -> SoC = 5%'
-            #LISTE = []
             #Konfiguration:  PV-Leistung geht auch bei SoC = 5% erst in die Lastabdeckung, dann in BSS-Ladung
-            if self.P_pv_v >= self.P_load_v:
+            if self.P_pv_v >= self.P_load_v + self.P_Wallbox:
                 self.countWE = 0
                 self.E_bat_v = self.E_bat_v + self.dE_v
-                self.P_bat_v = round(self.P_load_v - self.P_pv_v,2)
-                self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+                self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
+                self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
-            elif self.P_pv_v < self.P_load_v:
+            elif self.P_pv_v < self.P_load_v + self.P_Wallbox:
                 self.countWE = 0
                 self.P_bat_v = 0
-                self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+                self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
         elif self.E_bat_v + self.dE_v >= self.E_bat_v_max:  #SoC=100%
             'Virtueller Speicher ist voll'
             self.countWE = 0
             self.P_bat_v = 0
-            self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
             self.P_Residual_v = 0  # Eigentlich negative Residuallast, aber wird 0 gesetzt für Berechnung von P_BSS_Mehrbedarf
 
 
             'Ab hier beginnt erst Entladeleistustungsbegrenzung'
         else:
-            if (self.P_load_v - self.P_pv_v) < self.P_bat_v_max:
+            if (self.P_load_v + self.P_Wallbox - self.P_pv_v) < self.P_bat_v_max:
                 'Normalbetrieb für WE unter der virtuellen Leistungsgrenze'
                 self.countWE = 0
-                self.P_bat_v = self.P_load_v - self.P_pv_v
+                self.P_bat_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
 
-            #elif (self.P_load_v - self.P_pv_v) >= self.P_bat_v_max and self.E_bat_v <= self.E_bat_v_min:
-
-
-            elif (self.P_load_v - self.P_pv_v) >= self.P_bat_v_max:
+            elif (self.P_load_v + self.P_Wallbox - self.P_pv_v) >= self.P_bat_v_max:
                 'Leistungsüberschreitende WE werden gedrosselt'
-                P_BSS_Mehrbedarf = (self.P_Residual_phy - sum(P_res_v_emptyWE_sum)) - BSS.P_BSS_discharge_max # Ermittelt nötigen Netzbezug
+                P_BSS_Mehrbedarf = (self.P_Residual_phy) - (sum(P_res_v_emptyWE_sum) + sum(P_EV_v_emptyWE_sum)) - BSS.P_BSS_discharge_max # Ermittelt nötigen Netzbezug
                 self.countWE = 1
                 countWE_sum = sum(WE.countWE for WE in Wohneinheiten)
-                P_AbzugsleistungProWE = (P_BSS_Mehrbedarf / countWE_sum) * 1.5  # 1.15 als Sicherheitsfaktor
+                #print('count =',countWE_sum)
+                P_AbzugsleistungProWE = (P_BSS_Mehrbedarf / countWE_sum) * 1.15  # 1.15 als Sicherheitsfaktor
 
-                if ((self.P_load_v - self.P_pv_v) - P_AbzugsleistungProWE) <= self.P_bat_v_max: # Soll nicht unter 2,7 kW Grenze gedrosselt werden
+                if ((self.P_load_v + self.P_Wallbox - self.P_pv_v) - P_AbzugsleistungProWE) <= self.P_bat_v_max: # Soll nicht unter 2,7 kW Grenze gedrosselt werden
                     self.P_bat_v = round(self.P_bat_v_max,1)
                 else:
-                    self.P_bat_v = round((self.P_load_v - self.P_pv_v) - P_AbzugsleistungProWE,1)
+                    self.P_bat_v = round((self.P_load_v + self.P_Wallbox - self.P_pv_v) - P_AbzugsleistungProWE,1)
 
             self.dE_v = (-self.P_bat_v/3600) * BSS.efficiency
             self.E_bat_v = self.E_bat_v + self.dE_v
-            self.P_Netz_v = self.P_load_v - self.P_pv_v - self.P_bat_v
+            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
     def set_NTn_parameters(self):
         #print(self.Wohneinheit, 'status = ', self.Participation_status)
-        #self.P_load_v = (P_Last * self.load_offset)
         self.P_bat_v = 0
         self.E_bat_v = 0
         self.SoC_v = round(((self.E_bat_v / self.E_bat_v_max) * 100), 1)
         self.P_pv_v = 0
         self.P_Residual_v = self.P_load_v
-        self.P_Netz_v = self.P_load_v
-
-
+        self.P_Netz_v = self.P_load_v + self.P_Wallbox
 
 
     def run(self):  # AUFRUF DER BETRIEBSSTRATEGIE
         'STRATEGIEAUFRUF !!!'
-        global LISTE
         global P_res_v_emptyWE_sum
+        global P_EV_v_emptyWE_sum
         while True:
             try:
                 P_res_v_emptyWE_sum = []
                 P_res_v_emptyWE_sum = [W.P_Residual_v for W in Wohneinheiten if W.P_bat_v == 0]
+                P_EV_v_emptyWE_sum = []
+                P_EV_v_emptyWE_sum = [W.P_Wallbox for W in Wohneinheiten if W.P_bat_v == 0]
+                #print('Summenliste =',sum(P_EV_v_emptyWE_sum))
                 #print(P_res_v_emptyWE_sum,'SUMME -> ',sum(P_res_v_emptyWE_sum))
 
                 for WE in Wohneinheiten:
                     if WE.Participation_status == 0:
                         WE.set_NTn_parameters()
                     else:
-
                         WE.set_SOP()            # Setzt aktuellen SOP / Multiplikationsfaktor
                         WE.calc_parameters()    # Bestimme virtuellen Speicherstand etc.
 
@@ -630,7 +645,7 @@ class BSS_virtuell(Thread):
                             #print('Strategie: Tiefenentladungsschutz')
                             WE.strategy_depth_discharge_protection()
                             continue
-                        elif (P_load_sum - P_pv_sum) - sum(P_res_v_emptyWE_sum) >= BSS.P_BSS_discharge_max:
+                        elif (P_load_sum + P_Wallbox_sum - P_pv_sum) - (sum(P_res_v_emptyWE_sum) + sum(P_EV_v_emptyWE_sum)) >= BSS.P_BSS_discharge_max:
                             #print('Strategie: Einladeleistungsbeschränkung')
                             WE.strategy_P_BSS_discharge_limit()
                         else:
@@ -641,7 +656,7 @@ class BSS_virtuell(Thread):
                 self.P_BSS_sum = round(sum(WE.P_bat_v for WE in Wohneinheiten),1)
                 self.E_bat_sum = round(sum(WE.E_bat_v for WE in Wohneinheiten),1)
 
-                print('Simulierter Zeitstempel -->',Timestamp_sim,'--> P_pv =',P_pv_sum,'W')
+                #print('Simulierter Zeitstempel -->',Timestamp_sim,'--> P_pv =',P_pv_sum,'W')
 
             except NameError as err:
                 print('NameError --->',str(err))
@@ -686,6 +701,6 @@ WE24 = BSS_virtuell('WE24')
 Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
                  WE13, WE14, WE15, WE16, WE17, WE18, WE19, WE20, WE21, WE22, WE23,WE24]
 
-concurrentthreads = [Participation,PV,Last,EV,BSS,Momentanwerte,WE1,Handel] #,Zeitreihe],PV_excess
+concurrentthreads = [Participation,PV,Last,EV,BSS,Momentanwerte,WE1,Handel,PV_excess] #,Zeitreihe],
 for threads in concurrentthreads:
     threads.start()

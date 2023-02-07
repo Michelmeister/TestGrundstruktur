@@ -4,11 +4,14 @@ import csv
 from datetime import datetime,timezone
 import pytz
 import sqlite3
+import os
 
 #########
-P_load_sum = 0
-P_pv_sum = 0
-P_Wallbox_sum = 0
+P_load_sum      = 0
+P_pv_sum        = 0
+P_Wallbox_sum   = 0
+NTn_count_sum   = 0
+P_Netz_sum      = 0
 #########
 class PV_dummy(Thread):
     def __init__(self):
@@ -20,14 +23,14 @@ class PV_dummy(Thread):
         P_pv = 0
         Timestamp_sim = 0
 
-        csv_file = open('PV_csv\PV_2021-06-24_12.00.00_to_23.59.59_cloudy.csv',newline='')
+        csv_file = open('PV_csv\PV_2021-03-23_00.00.00_to_23.59.59_cloudy.csv',newline='')
         pv_profile = csv.DictReader(csv_file,delimiter=',')
         for row in pv_profile:
             if row['P_TOTAL'] == '':
                 pass
             else:
                 P_tot = float(row['P_TOTAL'])
-                P_pv = round((48/7) * P_tot) # W
+                P_pv = round((48/7) * P_tot) # W, Skalierung von 7 auf 48 kWp
                 #print(P_pv)
             Timestamp_sim = (row['Timestamp'])
             time.sleep(1)
@@ -107,25 +110,25 @@ class Last_dummy(Thread):
                 p_last_list[i] = P1+P2+P3
                 #print(f"Gesamtlast der WE{i+1} = {p_last_list[i]}")
 
-            WE1.P_load_v = p_last_list[0] * 0.35
-            WE2.P_load_v = p_last_list[1] * 0.45
+            WE1.P_load_v = p_last_list[0] * 1.0
+            WE2.P_load_v = p_last_list[1] * 0.85
             WE3.P_load_v = p_last_list[2] * 0.65
             WE4.P_load_v = p_last_list[3] * 0.75
-            WE5.P_load_v = p_last_list[4] * 0.35
+            WE5.P_load_v = p_last_list[4] * 0.85
             WE6.P_load_v = p_last_list[5] * 0.45
             WE7.P_load_v = p_last_list[6] * 0.55
             WE8.P_load_v = p_last_list[7] * 0.65
             WE9.P_load_v = p_last_list[8] * 0.75
-            WE10.P_load_v = p_last_list[9] * 0.25
-            WE11.P_load_v = p_last_list[10] * 0.35
+            WE10.P_load_v = p_last_list[9] * 0.55
+            WE11.P_load_v = p_last_list[10] * 0.65
             WE12.P_load_v = p_last_list[11] * 0.45
             WE13.P_load_v = p_last_list[12] * 0.55
             WE14.P_load_v = p_last_list[13] * 0.65
             WE15.P_load_v = p_last_list[14] * 0.75
             WE16.P_load_v = p_last_list[15] * 0.85
-            WE17.P_load_v = p_last_list[16] * 0.25
-            WE18.P_load_v = p_last_list[17] * 0.35
-            WE19.P_load_v = p_last_list[18] * 0.45
+            WE17.P_load_v = p_last_list[16] * 0.65
+            WE18.P_load_v = p_last_list[17] * 0.45
+            WE19.P_load_v = p_last_list[18] * 0.75
             WE20.P_load_v = p_last_list[19] * 0.55
             WE21.P_load_v = p_last_list[20] * 0.65
             WE22.P_load_v = p_last_list[21] * 0.75
@@ -155,9 +158,9 @@ class EV_charging_dummy(Thread):
         EV_profile6 = csv.DictReader(csv_EVfile6, delimiter=',')
         csv_EVfile7 = open('EV_csv/2020-01-06_Monday_manipuliert.csv', newline='')
         EV_profile7 = csv.DictReader(csv_EVfile7, delimiter=',')
-        csv_EVfile8 = open('EV_csv/2020-01-06_Monday_manipuliert.csv', newline='')
+        csv_EVfile8 = open('EV_csv/2020-01-07_Tuesday_manipuliert.csv', newline='')
         EV_profile8 = csv.DictReader(csv_EVfile8, delimiter=',')
-        csv_EVfile9 = open('EV_csv/2020-01-06_Monday_manipuliert.csv', newline='')
+        csv_EVfile9 = open('EV_csv/2020-01-08_Wednesday_manipuliert.csv', newline='')
         EV_profile9 = csv.DictReader(csv_EVfile9, delimiter=',')
         csv_EVfile10 = open('EV_csv/2020-01-06_Monday_manipuliert.csv', newline='')
         EV_profile10 = csv.DictReader(csv_EVfile10, delimiter=',')
@@ -168,28 +171,32 @@ class EV_charging_dummy(Thread):
             for i in range(10):
                 P_EV_list[i] = float(row[i]['Load_kW'])
                 #print(P_EV_list[i], 'kW')
-            WE2.P_Wallbox = round(P_EV_list[0] * 3) * 1000      # *3 Phasen, *1000 von kW auf W
+            WE2.P_Wallbox = round(P_EV_list[0] * 3) * 1000      # [*3 Phasen], [*1000 von kW auf W]
             WE5.P_Wallbox = round(P_EV_list[1] * 3) * 1000
             WE9.P_Wallbox = round(P_EV_list[2] * 3) * 1000
             WE13.P_Wallbox = round(P_EV_list[3] * 3) * 1000
             WE17.P_Wallbox = round(P_EV_list[4] * 3) * 1000
             WE18.P_Wallbox = round(P_EV_list[5] * 3) * 1000
+            # WE19.P_Wallbox = round(P_EV_list[6] * 3) * 1000
+            # WE20.P_Wallbox = round(P_EV_list[7] * 3) * 1000
+            # WE21.P_Wallbox = round(P_EV_list[8] * 3) * 1000
+            # WE22.P_Wallbox = round(P_EV_list[9] * 3) * 1000
             time.sleep(900)
 
 class BSS_dummy(Thread):
     def __init__(self):
         super().__init__()
-        self.E_bat_device = 38000 # Wh
+        self.E_bat_device = 33500 # Wh
         self.P_BSS_device = 0 # W # Sollwert für physikalische Lade-/Entladeleistung
         self.delta_E = 0
 
         self.E_bat_max = 67000 # Wh
-        self.E_bat_min = 3800 # Untere Entladegrenze SoC = 5%
+        self.E_bat_min = 3350 # Untere Entladegrenze SoC = 5%
         self.SoC = 50
         self.efficiency = 0.85
         self.P_BSS_discharge_max = 65000 # W
         self.P_BSS_charge_max = -65000 #W
-        self.Selbstentladung = ((0.03 * 76000)/24)/3600
+        self.Selbstentladung = ((0.03 * 67000)/24)/3600
 
     def run(self):
         while True:
@@ -215,15 +222,30 @@ class PV_excess_segment(Thread):
     def __init__(self):
         super().__init__()
         self.P_pv_excess_total = 0
+        self.P_grid_excess_segment = 0
+
+    def calc_pv_excess(self):
+        P_pv_feedin_sum = round(sum(WE.P_pv_feedin for WE in Wohneinheiten),1)
+        # print('P_pv_feedin_sum =',P_pv_feedin_sum)
+        self.P_pv_excess_total = (P_pv * (NTn_count_sum/24)) + P_pv_feedin_sum
+        # print('P_pv_excess_total =',self.P_pv_excess_total,'W')
+
+    def calc_P_grid(self):
+        P_grid2home = round(sum(WE.P_Netz_v for WE in Wohneinheiten),1)
+
+        if self.P_pv_excess_total == 0:
+            self.P_grid_excess_segment = 0
+
+        elif self.P_pv_excess_total <= P_grid2home:
+            self.P_grid_excess_segment = self.P_pv_excess_total
+
+        elif self.P_pv_excess_total > P_grid2home:
+            self.P_grid_excess_segment = P_grid2home - self.P_pv_excess_total
 
     def run(self):
         while True:
-            try:
-                self.P_pv_excess_total = (P_pv * (NTn_count_sum/24))
-                print(self.P_pv_excess_total)
-            except Exception as err:
-                self.P_pv_excess_total = 0
-                print('Error Message ---->',str(err))
+            PV_excess.calc_pv_excess()
+            PV_excess.calc_P_grid()
             time.sleep(1)
 
         # ANMKERUNG: Überschuss evtl. in methode BSS_virtuell aufrufen, um Verzögerungen zu mindern!!!
@@ -238,51 +260,59 @@ class MomentanwertDB(Thread):
         global P_pv_sum
         global P_Wallbox_sum
         global Timestamp
-        path = 'MomentanwertDB_sim2.db'
+        path = 'MomentanwertDB.db'
         timestamp = datetime.now(timezone.utc)
         local_time= timestamp.astimezone(pytz.timezone('Europe/Berlin'))
         Timestamp = str(local_time.strftime("%d-%m-%Y %H:%M:%S UTC%z"))
-        #Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
+        # Timestamp = str(timestamp.strftime("%d-%m-%Y %H:%M:%S"))
         P_load_sum = round(sum(WE.P_load_v for WE in Wohneinheiten),1)
-        P_Netz_sum = round(sum(WE.P_Netz_v for WE in Wohneinheiten),1)
         P_pv_sum = round(sum(WE.P_pv_v for WE in Wohneinheiten),1)
         P_Wallbox_sum = round(sum(WE.P_Wallbox for WE in Wohneinheiten))
+        P_grid_real = round(sum(WE.P_Netz_v for WE in Wohneinheiten),1)     # P_grid_real - Tatsächlicher Netzbezug (abzüglich PV-Überschussscheibe)
+        P_grid_sum = P_grid_real                                            # P_grid_sum - Theoretisch notwendiger NetzBEZUG!
+
+        if PV_excess.P_pv_excess_total >= P_grid_real:
+            P_grid_real = 0
+        elif PV_excess.P_pv_excess_total < P_grid_real:
+            P_grid_real = P_grid_real - PV_excess.P_grid_excess_segment
+
         value_list = [
-                    (Timestamp,'Geraetewerte',round(BSS.E_bat_device,2),BSS.SoC,BSS.P_BSS_device,P_load_sum, P_Wallbox_sum,P_pv_sum, P_Netz_sum),
-                    (Timestamp,'Rechenwerte',round(WE1.E_bat_sum,2),BSS.SoC,WE1.P_BSS_sum,P_load_sum, P_Wallbox_sum,P_pv_sum, P_Netz_sum),
-                    (Timestamp,WE1.Wohneinheit, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_v, round(WE1.P_Netz_v,2)),
-                    (Timestamp,WE2.Wohneinheit, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_v, round(WE2.P_Netz_v,2)),
-                    (Timestamp,WE3.Wohneinheit, round(WE3.E_bat_v,2), WE3.SoC_v, WE3.P_bat_v, WE3.P_load_v, WE3.P_Wallbox, WE3.P_pv_v, round(WE3.P_Netz_v,2)),
-                    (Timestamp,WE4.Wohneinheit, round(WE4.E_bat_v,2), WE4.SoC_v, WE4.P_bat_v, WE4.P_load_v, WE4.P_Wallbox, WE4.P_pv_v, round(WE4.P_Netz_v,2)),
-                    (Timestamp,WE5.Wohneinheit, round(WE5.E_bat_v,2), WE5.SoC_v, WE5.P_bat_v, WE5.P_load_v, WE5.P_Wallbox, WE5.P_pv_v, round(WE5.P_Netz_v,2)),
-                    (Timestamp,WE6.Wohneinheit, round(WE6.E_bat_v,2), WE6.SoC_v, WE6.P_bat_v, WE6.P_load_v, WE6.P_Wallbox, WE6.P_pv_v, round(WE6.P_Netz_v,2)),
-                    (Timestamp,WE7.Wohneinheit, round(WE7.E_bat_v,2), WE7.SoC_v, WE7.P_bat_v, WE7.P_load_v, WE7.P_Wallbox, WE7.P_pv_v, round(WE7.P_Netz_v,2)),
-                    (Timestamp,WE8.Wohneinheit, round(WE8.E_bat_v,2), WE8.SoC_v, WE8.P_bat_v, WE8.P_load_v, WE8.P_Wallbox, WE8.P_pv_v, round(WE8.P_Netz_v,2)),
-                    (Timestamp,WE9.Wohneinheit, round(WE9.E_bat_v,2), WE9.SoC_v, WE9.P_bat_v, WE9.P_load_v, WE9.P_Wallbox, WE9.P_pv_v, round(WE9.P_Netz_v,2)),
-                    (Timestamp,WE10.Wohneinheit,round(WE10.E_bat_v,2),WE10.SoC_v,WE10.P_bat_v,WE10.P_load_v,WE10.P_Wallbox,WE10.P_pv_v, round(WE10.P_Netz_v,2)),
-                    (Timestamp,WE11.Wohneinheit,round(WE11.E_bat_v,2),WE11.SoC_v,WE11.P_bat_v,WE11.P_load_v,WE11.P_Wallbox,WE11.P_pv_v, round(WE11.P_Netz_v,2)),
-                    (Timestamp,WE12.Wohneinheit,round(WE12.E_bat_v,2),WE12.SoC_v,WE12.P_bat_v,WE12.P_load_v,WE12.P_Wallbox,WE12.P_pv_v, round(WE12.P_Netz_v,2)),
-                    (Timestamp,WE13.Wohneinheit,round(WE13.E_bat_v,2),WE13.SoC_v,WE13.P_bat_v,WE13.P_load_v,WE13.P_Wallbox,WE13.P_pv_v, round(WE13.P_Netz_v,2)),
-                    (Timestamp,WE14.Wohneinheit,round(WE14.E_bat_v,2),WE14.SoC_v,WE14.P_bat_v,WE14.P_load_v,WE14.P_Wallbox,WE14.P_pv_v, round(WE14.P_Netz_v,2)),
-                    (Timestamp,WE15.Wohneinheit,round(WE15.E_bat_v,2),WE15.SoC_v,WE15.P_bat_v,WE15.P_load_v,WE15.P_Wallbox,WE15.P_pv_v, round(WE15.P_Netz_v,2)),
-                    (Timestamp,WE16.Wohneinheit,round(WE16.E_bat_v,2),WE16.SoC_v,WE16.P_bat_v,WE16.P_load_v,WE16.P_Wallbox,WE16.P_pv_v, round(WE16.P_Netz_v,2)),
-                    (Timestamp,WE17.Wohneinheit,round(WE17.E_bat_v,2),WE17.SoC_v,WE17.P_bat_v,WE17.P_load_v,WE17.P_Wallbox,WE17.P_pv_v, round(WE17.P_Netz_v,2)),
-                    (Timestamp,WE18.Wohneinheit,round(WE18.E_bat_v,2),WE18.SoC_v,WE18.P_bat_v,WE18.P_load_v,WE18.P_Wallbox,WE18.P_pv_v, round(WE18.P_Netz_v,2)),
-                    (Timestamp,WE19.Wohneinheit,round(WE19.E_bat_v,2),WE19.SoC_v,WE19.P_bat_v,WE19.P_load_v,WE19.P_Wallbox,WE19.P_pv_v, round(WE19.P_Netz_v,2)),
-                    (Timestamp,WE20.Wohneinheit,round(WE20.E_bat_v,2),WE20.SoC_v,WE20.P_bat_v,WE20.P_load_v,WE20.P_Wallbox,WE20.P_pv_v, round(WE20.P_Netz_v,2)),
-                    (Timestamp,WE21.Wohneinheit,round(WE21.E_bat_v,2),WE21.SoC_v,WE21.P_bat_v,WE21.P_load_v,WE21.P_Wallbox,WE21.P_pv_v, round(WE21.P_Netz_v,2)),
-                    (Timestamp,WE22.Wohneinheit,round(WE22.E_bat_v,2),WE22.SoC_v,WE22.P_bat_v,WE22.P_load_v,WE22.P_Wallbox,WE22.P_pv_v, round(WE22.P_Netz_v,2)),
-                    (Timestamp,WE23.Wohneinheit,round(WE23.E_bat_v,2),WE23.SoC_v,WE23.P_bat_v,WE23.P_load_v,WE23.P_Wallbox,WE23.P_pv_v, round(WE23.P_Netz_v,2)),
-                    (Timestamp,WE24.Wohneinheit,round(WE24.E_bat_v,2),WE24.SoC_v,WE24.P_bat_v,WE24.P_load_v,WE24.P_Wallbox,WE24.P_pv_v, round(WE24.P_Netz_v,2))
+                    (Timestamp,'Geraetewerte',round(BSS.E_bat_device,2),BSS.SoC,BSS.P_BSS_device,P_load_sum, P_Wallbox_sum,P_pv_sum, round(P_grid_real,2)),
+                    (Timestamp,'Rechenwerte', round(WE1.E_bat_sum,2), BSS.SoC, WE1.P_BSS_sum, P_load_sum, P_Wallbox_sum, P_pv_sum, round(P_grid_sum,2)),
+                    (Timestamp,WE1.Wohneinheit, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_usage, round(WE1.P_Netz_v,2)),
+                    (Timestamp,WE2.Wohneinheit, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_usage, round(WE2.P_Netz_v,2)),
+                    (Timestamp,WE3.Wohneinheit, round(WE3.E_bat_v,2), WE3.SoC_v, WE3.P_bat_v, WE3.P_load_v, WE3.P_Wallbox, WE3.P_pv_usage, round(WE3.P_Netz_v,2)),
+                    (Timestamp,WE4.Wohneinheit, round(WE4.E_bat_v,2), WE4.SoC_v, WE4.P_bat_v, WE4.P_load_v, WE4.P_Wallbox, WE4.P_pv_usage, round(WE4.P_Netz_v,2)),
+                    (Timestamp,WE5.Wohneinheit, round(WE5.E_bat_v,2), WE5.SoC_v, WE5.P_bat_v, WE5.P_load_v, WE5.P_Wallbox, WE5.P_pv_usage, round(WE5.P_Netz_v,2)),
+                    (Timestamp,WE6.Wohneinheit, round(WE6.E_bat_v,2), WE6.SoC_v, WE6.P_bat_v, WE6.P_load_v, WE6.P_Wallbox, WE6.P_pv_usage, round(WE6.P_Netz_v,2)),
+                    (Timestamp,WE7.Wohneinheit, round(WE7.E_bat_v,2), WE7.SoC_v, WE7.P_bat_v, WE7.P_load_v, WE7.P_Wallbox, WE7.P_pv_usage, round(WE7.P_Netz_v,2)),
+                    (Timestamp,WE8.Wohneinheit, round(WE8.E_bat_v,2), WE8.SoC_v, WE8.P_bat_v, WE8.P_load_v, WE8.P_Wallbox, WE8.P_pv_usage, round(WE8.P_Netz_v,2)),
+                    (Timestamp,WE9.Wohneinheit, round(WE9.E_bat_v,2), WE9.SoC_v, WE9.P_bat_v, WE9.P_load_v, WE9.P_Wallbox, WE9.P_pv_usage, round(WE9.P_Netz_v,2)),
+                    (Timestamp,WE10.Wohneinheit,round(WE10.E_bat_v,2),WE10.SoC_v,WE10.P_bat_v,WE10.P_load_v,WE10.P_Wallbox,WE10.P_pv_usage, round(WE10.P_Netz_v,2)),
+                    (Timestamp,WE11.Wohneinheit,round(WE11.E_bat_v,2),WE11.SoC_v,WE11.P_bat_v,WE11.P_load_v,WE11.P_Wallbox,WE11.P_pv_usage, round(WE11.P_Netz_v,2)),
+                    (Timestamp,WE12.Wohneinheit,round(WE12.E_bat_v,2),WE12.SoC_v,WE12.P_bat_v,WE12.P_load_v,WE12.P_Wallbox,WE12.P_pv_usage, round(WE12.P_Netz_v,2)),
+                    (Timestamp,WE13.Wohneinheit,round(WE13.E_bat_v,2),WE13.SoC_v,WE13.P_bat_v,WE13.P_load_v,WE13.P_Wallbox,WE13.P_pv_usage, round(WE13.P_Netz_v,2)),
+                    (Timestamp,WE14.Wohneinheit,round(WE14.E_bat_v,2),WE14.SoC_v,WE14.P_bat_v,WE14.P_load_v,WE14.P_Wallbox,WE14.P_pv_usage, round(WE14.P_Netz_v,2)),
+                    (Timestamp,WE15.Wohneinheit,round(WE15.E_bat_v,2),WE15.SoC_v,WE15.P_bat_v,WE15.P_load_v,WE15.P_Wallbox,WE15.P_pv_usage, round(WE15.P_Netz_v,2)),
+                    (Timestamp,WE16.Wohneinheit,round(WE16.E_bat_v,2),WE16.SoC_v,WE16.P_bat_v,WE16.P_load_v,WE16.P_Wallbox,WE16.P_pv_usage, round(WE16.P_Netz_v,2)),
+                    (Timestamp,WE17.Wohneinheit,round(WE17.E_bat_v,2),WE17.SoC_v,WE17.P_bat_v,WE17.P_load_v,WE17.P_Wallbox,WE17.P_pv_usage, round(WE17.P_Netz_v,2)),
+                    (Timestamp,WE18.Wohneinheit,round(WE18.E_bat_v,2),WE18.SoC_v,WE18.P_bat_v,WE18.P_load_v,WE18.P_Wallbox,WE18.P_pv_usage, round(WE18.P_Netz_v,2)),
+                    (Timestamp,WE19.Wohneinheit,round(WE19.E_bat_v,2),WE19.SoC_v,WE19.P_bat_v,WE19.P_load_v,WE19.P_Wallbox,WE19.P_pv_usage, round(WE19.P_Netz_v,2)),
+                    (Timestamp,WE20.Wohneinheit,round(WE20.E_bat_v,2),WE20.SoC_v,WE20.P_bat_v,WE20.P_load_v,WE20.P_Wallbox,WE20.P_pv_usage, round(WE20.P_Netz_v,2)),
+                    (Timestamp,WE21.Wohneinheit,round(WE21.E_bat_v,2),WE21.SoC_v,WE21.P_bat_v,WE21.P_load_v,WE21.P_Wallbox,WE21.P_pv_usage, round(WE21.P_Netz_v,2)),
+                    (Timestamp,WE22.Wohneinheit,round(WE22.E_bat_v,2),WE22.SoC_v,WE22.P_bat_v,WE22.P_load_v,WE22.P_Wallbox,WE22.P_pv_usage, round(WE22.P_Netz_v,2)),
+                    (Timestamp,WE23.Wohneinheit,round(WE23.E_bat_v,2),WE23.SoC_v,WE23.P_bat_v,WE23.P_load_v,WE23.P_Wallbox,WE23.P_pv_usage, round(WE23.P_Netz_v,2)),
+                    (Timestamp,WE24.Wohneinheit,round(WE24.E_bat_v,2),WE24.SoC_v,WE24.P_bat_v,WE24.P_load_v,WE24.P_Wallbox,WE24.P_pv_usage, round(WE24.P_Netz_v,2)),
+                    (Timestamp,'PV-Segment',0,0,0,0,0,round(PV_excess.P_pv_excess_total,2), round(PV_excess.P_grid_excess_segment, 2))
                       ]
         conSQ = sqlite3.connect(path)
         curSQ = conSQ.cursor()
-        curSQ.execute("CREATE TABLE IF NOT EXISTS Tabelle2 "
-                      "(Timestamp text, Name text PRIMARY KEY,E_BSS real, SoC real,P_BSS real, P_Last real, P_Wallbox real,P_PV real, P_Netz real)")
-        curSQ.executemany("INSERT OR REPLACE INTO Tabelle2 "
-                          "(Timestamp, Name, E_BSS, SoC,P_BSS, P_Last, P_Wallbox,P_PV, P_Netz) VALUES (?,?,?,?,?,?,?,?,?)",(value_list))
+        curSQ.execute("CREATE TABLE IF NOT EXISTS Tabelle1 "
+                      "(Timestamp text, Name text PRIMARY KEY,E_BSS real, SoC real,P_BSS real, P_Last real, P_Wallbox real,P_PV_Nutz real, P_Netz real)")
+        curSQ.executemany("INSERT OR REPLACE INTO Tabelle1 "
+                          "(Timestamp, Name, E_BSS, SoC,P_BSS, P_Last, P_Wallbox,P_PV_Nutz, P_Netz) VALUES (?,?,?,?,?,?,?,?,?)",(value_list))
         conSQ.commit()
-        for row in curSQ.execute("SELECT * FROM Tabelle2"):
+        for row in curSQ.execute("SELECT * FROM Tabelle1"):
             row
 
     def run(self):
@@ -294,13 +324,30 @@ class ZeitreihenDB(Thread):
         super().__init__()
 
     def CSV_Daten(self):
+        global P_load_sum
+        global P_pv_sum
+
+        # Zeitstempel wird erstellt
         time = datetime.now()
-        csv_name = str(time.strftime("%d%b%Y"))
         timestamp = datetime.now(timezone.utc)
-        local_time= timestamp.astimezone(pytz.timezone('Europe/Berlin'))
+        local_time = timestamp.astimezone(pytz.timezone('Europe/Berlin'))
         Timestamp = str(local_time.strftime("%d-%m-%Y %H:%M:%S UTC%z"))
 
-        path2 = 'ZeitreihenDB\data_' + csv_name + '.db'
+        # Ordner- & Dateiname festlegen
+        csv_name = str(time.strftime("%d%b%Y"))
+        directory = str(time.strftime("%Y_%m"))
+        parent_dir = 'ZeitreihenDB'  # muss angepasst werden, je nach dem wo Ordner liegt!
+        path = os.path.join(parent_dir, directory)
+
+        # sucht nach Ordner des aktuellen Monats, falls nicht vorhanden, wird neuer Ordner erstellt
+        try:
+            os.stat(path)
+            #print("Ordner '%s' bereits vorhanden" % directory)
+        except:
+            os.mkdir(path)
+            #print("Ordner '%s' erstellt" % directory)
+
+        path2 = path + '/data_' + csv_name + '.db'
 
         csv_list_we1 = [Timestamp, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_v, round(WE1.P_Netz_v,2)]
         csv_list_we2 = [Timestamp, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_v, round(WE2.P_Netz_v,2)]
@@ -327,6 +374,7 @@ class ZeitreihenDB(Thread):
         csv_list_we23 = [Timestamp, round(WE23.E_bat_v,2), WE23.SoC_v, WE23.P_bat_v, WE23.P_load_v, WE23.P_Wallbox, WE23.P_pv_v, round(WE23.P_Netz_v,2)]
         csv_list_we24 = [Timestamp, round(WE24.E_bat_v,2), WE24.SoC_v, WE24.P_bat_v, WE24.P_load_v, WE24.P_Wallbox, WE24.P_pv_v, round(WE24.P_Netz_v,2)]
 
+        # SQlite-Datenbank wird erstellt
         connectSQ = sqlite3.connect(path2)
         cursorSQ = connectSQ.cursor()
 
@@ -349,6 +397,7 @@ class ZeitreihenDB(Thread):
         while True:
             time.sleep(0.49)
             Zeitreihe.CSV_Daten()
+
 class Handelstabelle(Thread):
     def __init__(self):
         super().__init__()
@@ -459,6 +508,8 @@ class BSS_virtuell(Thread):
         self.SoC_v = 50
         self.P_Wallbox = 0
         self.P_pv_v = 0
+        self.P_pv_usage = 0
+        self.P_pv_feedin = 0
         self.PV_Handelsstatus = 0
         self.P_Residual_phy = 0
         self.P_Residual_v = 0
@@ -502,42 +553,57 @@ class BSS_virtuell(Thread):
             'Entladegrenze virtuell -> SoC = 5%'
             #Konfiguration:  PV-Leistung geht auch bei SoC = 5% erst in die Lastabdeckung, dann in BSS-Ladung
             if self.P_pv_v >= self.P_load_v + self.P_Wallbox:
+                self.P_pv_usage = self.P_pv_v
+                self.P_pv_feedin = 0
                 self.E_bat_v = self.E_bat_v + self.dE_v
                 self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
                 self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
             elif self.P_pv_v < self.P_load_v + self.P_Wallbox:
                 self.P_bat_v = 0
+                self.P_pv_usage = self.P_pv_v
+                self.P_pv_feedin = 0
                 self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
 
         elif self.E_bat_v + self.dE_v >= self.E_bat_v_max:  #SoC=100%
             'Virtueller Speicher ist voll'
+            self.P_pv_usage = self.P_load_v
+            self.P_pv_feedin = self.P_pv_v - self.P_pv_usage
             self.P_bat_v = 0
-            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
+            # self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
+            self.P_Netz_v = 0
 
         else:
             'Normalbetrieb: PV-Überschussladen'
             self.E_bat_v = self.E_bat_v + self.dE_v
+            self.P_pv_usage = self.P_pv_v
+            self.P_pv_feedin = 0
             self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)       # bei PV-Überschuss negativer Wert -> Speicher laden!
             self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v # PV-Überschuss und Ladeleistung BSS gleichen sich im Normalbetrieb aus
 
 
     def strategy_depth_discharge_protection(self):
         'Entladegrenze physikalisch -> SoC = 5%'
-        if BSS.E_bat_device <= 3650:
+        if BSS.E_bat_device <= (0.048 * 67000):
             'Erhaltungsladung ab SoC = 4,8%'
             self.P_bat_v = -25 - self.P_pv_v # Alle WE laden mit 25 W um SoC = 4,8% aufrecht zu erhalten
+            self.P_pv_usage = self.P_pv_v
+            self.P_pv_feedin = 0
             self.dE_v = (-self.P_bat_v/3600) * BSS.efficiency
             self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_bat_v
             self.E_bat_v = self.E_bat_v + self.dE_v
 
         elif P_pv_sum >= P_load_sum + P_Wallbox_sum:
             self.E_bat_v = self.E_bat_v + self.dE_v
+            self.P_pv_usage = self.P_pv_v
+            self.P_pv_feedin = 0
             self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
             self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
         elif P_pv_sum < P_load_sum:
             self.P_bat_v = 0
+            self.P_pv_usage = self.P_pv_v
+            self.P_pv_feedin = 0
             self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
 
 
@@ -547,6 +613,8 @@ class BSS_virtuell(Thread):
             #Konfiguration:  PV-Leistung geht auch bei SoC = 5% erst in die Lastabdeckung, dann in BSS-Ladung
             if self.P_pv_v >= self.P_load_v + self.P_Wallbox:
                 self.countWE = 0
+                self.P_pv_usage = self.P_pv_v
+                self.P_pv_feedin = 0
                 self.E_bat_v = self.E_bat_v + self.dE_v
                 self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
                 self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
@@ -554,13 +622,18 @@ class BSS_virtuell(Thread):
             elif self.P_pv_v < self.P_load_v + self.P_Wallbox:
                 self.countWE = 0
                 self.P_bat_v = 0
+                self.P_pv_usage = self.P_pv_v
+                self.P_pv_feedin = 0
                 self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
         elif self.E_bat_v + self.dE_v >= self.E_bat_v_max:  #SoC=100%
             'Virtueller Speicher ist voll'
             self.countWE = 0
             self.P_bat_v = 0
-            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
+            self.P_pv_usage = self.P_load_v
+            self.P_pv_feedin = self.P_pv_v - self.P_pv_usage
+            self.P_Netz_v = 0
+            # self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
             self.P_Residual_v = 0  # Eigentlich negative Residuallast, aber wird 0 gesetzt für Berechnung von P_BSS_Mehrbedarf
 
 
@@ -569,14 +642,19 @@ class BSS_virtuell(Thread):
             if (self.P_load_v + self.P_Wallbox - self.P_pv_v) < self.P_bat_v_max:
                 'Normalbetrieb für WE unter der virtuellen Leistungsgrenze'
                 self.countWE = 0
+                self.P_pv_usage = self.P_pv_v
+                self.P_pv_feedin = 0
                 self.P_bat_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
 
             elif (self.P_load_v + self.P_Wallbox - self.P_pv_v) >= self.P_bat_v_max:
                 'Leistungsüberschreitende WE werden gedrosselt'
-                P_BSS_Mehrbedarf = (self.P_Residual_phy + P_Wallbox_sum - sum(P_res_v_emptyWE_sum) - sum(P_EV_v_emptyWE_sum)) - BSS.P_BSS_discharge_max # Ermittelt nötigen Netzbezug
+                P_BSS_Mehrbedarf = (self.P_Residual_phy) - (sum(P_res_v_emptyWE_sum)) - BSS.P_BSS_discharge_max # Ermittelt nötigen Netzbezug,  + sum(P_EV_v_emptyWE_sum)
                 self.countWE = 1
                 countWE_sum = sum(WE.countWE for WE in Wohneinheiten)
-                P_AbzugsleistungProWE = (P_BSS_Mehrbedarf / countWE_sum) * 1.4  # 1.4 als Sicherheitsfaktor
+                #print('count =',countWE_sum)
+                P_AbzugsleistungProWE = (P_BSS_Mehrbedarf / countWE_sum) * 1.15  # 1.15 als Sicherheitsfaktor
+                self.P_pv_usage = self.P_pv_v
+                self.P_pv_feedin = 0
 
                 if ((self.P_load_v + self.P_Wallbox - self.P_pv_v) - P_AbzugsleistungProWE) <= self.P_bat_v_max: # Soll nicht unter 2,7 kW Grenze gedrosselt werden
                     self.P_bat_v = round(self.P_bat_v_max,1)
@@ -593,8 +671,10 @@ class BSS_virtuell(Thread):
         self.E_bat_v = 0
         self.SoC_v = round(((self.E_bat_v / self.E_bat_v_max) * 100), 1)
         self.P_pv_v = 0
+        self.P_pv_usage = self.P_pv_v
+        self.P_pv_feedin = 0
         self.P_Residual_v = self.P_load_v
-        self.P_Netz_v = self.P_load_v
+        self.P_Netz_v = self.P_load_v + self.P_Wallbox
 
 
     def run(self):  # AUFRUF DER BETRIEBSSTRATEGIE
@@ -614,7 +694,6 @@ class BSS_virtuell(Thread):
                     if WE.Participation_status == 0:
                         WE.set_NTn_parameters()
                     else:
-
                         WE.set_SOP()            # Setzt aktuellen SOP / Multiplikationsfaktor
                         WE.calc_parameters()    # Bestimme virtuellen Speicherstand etc.
 
@@ -622,7 +701,7 @@ class BSS_virtuell(Thread):
                             #print('Strategie: Tiefenentladungsschutz')
                             WE.strategy_depth_discharge_protection()
                             continue
-                        elif (P_load_sum - P_pv_sum) - sum(P_res_v_emptyWE_sum) >= BSS.P_BSS_discharge_max:
+                        elif (P_load_sum + P_Wallbox_sum - P_pv_sum) - (sum(P_res_v_emptyWE_sum)) >= BSS.P_BSS_discharge_max: # + sum(P_EV_v_emptyWE_sum)
                             #print('Strategie: Einladeleistungsbeschränkung')
                             WE.strategy_P_BSS_discharge_limit()
                         else:
@@ -678,6 +757,6 @@ WE24 = BSS_virtuell('WE24')
 Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
                  WE13, WE14, WE15, WE16, WE17, WE18, WE19, WE20, WE21, WE22, WE23,WE24]
 
-concurrentthreads = [Participation,PV,Last,EV,BSS,Momentanwerte,WE1,Handel] #,Zeitreihe],PV_excess
+concurrentthreads = [Participation,PV,Last,EV,BSS,Momentanwerte,WE1,Handel,PV_excess] #,Zeitreihe],
 for threads in concurrentthreads:
     threads.start()
