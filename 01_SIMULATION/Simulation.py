@@ -11,7 +11,6 @@ P_load_sum      = 0
 P_pv_sum        = 0
 P_Wallbox_sum   = 0
 NTn_count_sum   = 0
-P_Netz_sum      = 0
 #########
 class PV_dummy(Thread):
     def __init__(self):
@@ -23,7 +22,7 @@ class PV_dummy(Thread):
         P_pv = 0
         Timestamp_sim = 0
 
-        csv_file = open('PV_csv\PV_2021-03-23_00.00.00_to_23.59.59_cloudy.csv',newline='')
+        csv_file = open('PV_csv\PV_2021-03-30_12.00.00_to_23.59.59_sunny.csv',newline='')
         pv_profile = csv.DictReader(csv_file,delimiter=',')
         for row in pv_profile:
             if row['P_TOTAL'] == '':
@@ -186,7 +185,7 @@ class EV_charging_dummy(Thread):
 class BSS_dummy(Thread):
     def __init__(self):
         super().__init__()
-        self.E_bat_device = 33500 # Wh
+        self.E_bat_device = 3190 # Wh
         self.P_BSS_device = 0 # W # Sollwert für physikalische Lade-/Entladeleistung
         self.delta_E = 0
 
@@ -397,7 +396,6 @@ class ZeitreihenDB(Thread):
         while True:
             time.sleep(0.49)
             Zeitreihe.CSV_Daten()
-
 class Handelstabelle(Thread):
     def __init__(self):
         super().__init__()
@@ -501,7 +499,6 @@ class BSS_virtuell(Thread):
         self.E_bat_sum = 35000 # initial value
         self.P_BSS_sum = 0
         self.P_bat_v_max = 2700
-        self.Selbstentladung_v = (BSS.Selbstentladung/24)
         self.dE_v = 0
         self.P_load_v = 0
         self.P_Netz_v = 0
@@ -516,6 +513,7 @@ class BSS_virtuell(Thread):
         self.countWE = 0
         self.Participation_status = 1
         self.Melani_NTn_count = 0
+        self.Selbstentladung_v = (BSS.Selbstentladung/(24-NTn_count_sum))
 
     def set_SOP(self):
 
@@ -557,7 +555,7 @@ class BSS_virtuell(Thread):
                 self.P_pv_feedin = 0
                 self.E_bat_v = self.E_bat_v + self.dE_v
                 self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
-                self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
+                self.P_Netz_v = 0
 
             elif self.P_pv_v < self.P_load_v + self.P_Wallbox:
                 self.P_bat_v = 0
@@ -584,27 +582,34 @@ class BSS_virtuell(Thread):
 
     def strategy_depth_discharge_protection(self):
         'Entladegrenze physikalisch -> SoC = 5%'
-        if BSS.E_bat_device <= (0.048 * 67000):
-            'Erhaltungsladung ab SoC = 4,8%'
-            self.P_bat_v = -25 - self.P_pv_v # Alle WE laden mit 25 W um SoC = 4,8% aufrecht zu erhalten
+        if BSS.E_bat_device <= (0.05 * BSS.E_bat_max):
             self.P_pv_usage = self.P_pv_v
             self.P_pv_feedin = 0
-            self.dE_v = (-self.P_bat_v/3600) * BSS.efficiency
-            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_bat_v
-            self.E_bat_v = self.E_bat_v + self.dE_v
+            if P_pv_sum >= P_load_sum + P_Wallbox_sum:
+                if self.P_pv_v >= self.P_load_v + self.P_Wallbox:
+                    self.E_bat_v = self.E_bat_v + self.dE_v
+                    self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
+                    self.P_Netz_v = 0
 
-        elif P_pv_sum >= P_load_sum + P_Wallbox_sum:
-            self.E_bat_v = self.E_bat_v + self.dE_v
-            self.P_pv_usage = self.P_pv_v
-            self.P_pv_feedin = 0
-            self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
-            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
+                elif self.P_pv_v < self.P_load_v + self.P_Wallbox:
+                    self.P_bat_v = 0
+                    self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
 
-        elif P_pv_sum < P_load_sum:
-            self.P_bat_v = 0
-            self.P_pv_usage = self.P_pv_v
-            self.P_pv_feedin = 0
-            self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
+
+            elif BSS.E_bat_device <= (0.045 * BSS.E_bat_max):
+                'Erhaltungsladung von SoC = 4,5 bis 4,8%'
+                self.P_bat_v = -25
+                self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_bat_v - self.P_pv_v
+                self.dE_v = (-self.P_bat_v/3600) * BSS.efficiency
+                self.E_bat_v = self.E_bat_v + self.dE_v
+            elif BSS.E_bat_device >= (0.048 * BSS.E_bat_max):
+                self.P_bat_v = 0
+                self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_bat_v - self.P_pv_v
+            else:
+                # Bleibe in Erhaltungsladung bis SoC = 4,8%
+                self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_bat_v - self.P_pv_v
+                self.dE_v = (-self.P_bat_v/3600) * BSS.efficiency
+                self.E_bat_v = self.E_bat_v + self.dE_v
 
 
     def strategy_P_BSS_discharge_limit(self):
@@ -617,7 +622,7 @@ class BSS_virtuell(Thread):
                 self.P_pv_feedin = 0
                 self.E_bat_v = self.E_bat_v + self.dE_v
                 self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)
-                self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
+                self.P_Netz_v = 0
 
             elif self.P_pv_v < self.P_load_v + self.P_Wallbox:
                 self.countWE = 0
@@ -667,9 +672,10 @@ class BSS_virtuell(Thread):
 
     def set_NTn_parameters(self):
         #print(self.Wohneinheit, 'status = ', self.Participation_status)
+        #self.E_bat_v = 0
+        #self.E_bat_v = self.E_bat_v + self.Selbstentladung_v
         self.P_bat_v = 0
-        self.E_bat_v = 0
-        self.SoC_v = round(((self.E_bat_v / self.E_bat_v_max) * 100), 1)
+        self.SoC_v = 0 # round(((self.E_bat_v / self.E_bat_v_max) * 100), 1)
         self.P_pv_v = 0
         self.P_pv_usage = self.P_pv_v
         self.P_pv_feedin = 0
