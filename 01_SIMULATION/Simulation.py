@@ -11,6 +11,8 @@ P_load_sum      = 0
 P_pv_sum        = 0
 P_Wallbox_sum   = 0
 NTn_count_sum   = 0
+E_bat_sum       = 35000
+P_BSS_sum       = 0
 #########
 class PV_dummy(Thread):
     def __init__(self):
@@ -22,7 +24,7 @@ class PV_dummy(Thread):
         P_pv = 0
         Timestamp_sim = 0
 
-        csv_file = open('PV_csv\PV_2021-03-30_12.00.00_to_23.59.59_sunny.csv',newline='')
+        csv_file = open('PV_csv\PV_2021-06-24_12.00.00_to_23.59.59_cloudy.csv',newline='')
         pv_profile = csv.DictReader(csv_file,delimiter=',')
         for row in pv_profile:
             if row['P_TOTAL'] == '':
@@ -185,7 +187,7 @@ class EV_charging_dummy(Thread):
 class BSS_dummy(Thread):
     def __init__(self):
         super().__init__()
-        self.E_bat_device = 3190 # Wh
+        self.E_bat_device = 30000 # Wh
         self.P_BSS_device = 0 # W # Sollwert für physikalische Lade-/Entladeleistung
         self.delta_E = 0
 
@@ -200,7 +202,7 @@ class BSS_dummy(Thread):
     def run(self):
         while True:
             time.sleep(1)
-            self.P_BSS_device = sum(WE.P_bat_v for WE in Wohneinheiten)
+            self.P_BSS_device = round(sum(WE.P_bat_v for WE in Wohneinheiten) + Provider_segment.P_bat_segment,2)
             self.E_bat_device = self.E_bat_device - self.Selbstentladung
 
             # "Physikalische Leistungsbegrenzung BSS"
@@ -212,16 +214,21 @@ class BSS_dummy(Thread):
             #     self.P_BSS_device = self.P_BSS_device
 
             self.delta_E = (-self.P_BSS_device/3600) * self.efficiency
-
-            self.P_BSS_device = round(self.P_BSS_device, 2)
             self.E_bat_device = self.E_bat_device + self.delta_E
             self.SoC = round((self.E_bat_device/self.E_bat_max)*100,1)
 
-class PV_excess_segment(Thread):
+class Added_segment(Thread):
     def __init__(self):
         super().__init__()
         self.P_pv_excess_total = 0
         self.P_grid_excess_segment = 0
+        self.E_bat_max_segment = 0
+        self.E_bat_min_segment = 0
+        self.E_bat_segment = 0
+        self.SoC_Segment = 0
+        self.P_bat_segment = 0
+        self.P_bat_max_segment = 0
+
 
     def calc_pv_excess(self):
         P_pv_feedin_sum = round(sum(WE.P_pv_feedin for WE in Wohneinheiten),1)
@@ -229,26 +236,101 @@ class PV_excess_segment(Thread):
         self.P_pv_excess_total = (P_pv * (NTn_count_sum/24)) + P_pv_feedin_sum
         # print('P_pv_excess_total =',self.P_pv_excess_total,'W')
 
-    def calc_P_grid(self):
-        P_grid2home = round(sum(WE.P_Netz_v for WE in Wohneinheiten),1)
+    def calc_bss_segment(self):
+        if NTn_count_sum == 0:
+            self.E_bat_segment = 0
 
-        if self.P_pv_excess_total == 0:
-            self.P_grid_excess_segment = 0
+        self.E_bat_max_segment = NTn_count_sum * WE1.E_bat_v_max
+        self.P_bat_max_segment = NTn_count_sum * WE1.P_bat_v_max
+        self.E_bat_min_segment = 0.05 * self.E_bat_max_segment
+        try:
+            self.SoC_Segment = (self.E_bat_segment/self.E_bat_max_segment) * 100
+        except ZeroDivisionError:
+            self.SoC_Segment = 0
 
-        elif self.P_pv_excess_total <= P_grid2home:
-            self.P_grid_excess_segment = self.P_pv_excess_total
+    def strategy_segment(self):
+        global P_grid_real, P_grid_sum
+        P_grid2home = sum(WE.P_Netz_v for WE in Wohneinheiten)
+        self_discharge = WE1.self_discharge_v * NTn_count_sum
+        self.E_bat_segment = self.E_bat_segment - self_discharge
+        if self.P_pv_excess_total >= P_grid2home:
+            P_bat_demand = 0
+        else:
+            #elif self.P_pv_excess_total < P_grid2home:
+            P_bat_demand = P_grid2home - self.P_pv_excess_total
 
-        elif self.P_pv_excess_total > P_grid2home:
-            self.P_grid_excess_segment = P_grid2home - self.P_pv_excess_total
+
+        if sum(WE.P_bat_v for WE in Wohneinheiten) + P_bat_demand > BSS.P_BSS_discharge_max:
+            'BSS discharge limit -> shut down Provider-segment first -> only use PV-Excess'
+            self.P_bat_segment = 0
+            if self.P_pv_excess_total >= P_grid2home:
+                self.P_grid_excess_segment = P_grid2home - self.P_pv_excess_total
+            elif self.P_pv_excess_total < P_grid2home:
+                self.P_grid_excess_segment = self.P_pv_excess_total
+
+        else:
+            if self.E_bat_segment >= self.E_bat_max_segment:
+                'BSS segment is full'
+                if self.P_pv_excess_total >= P_grid2home:
+                    self.P_bat_segment = 0
+                    delta_E_segment = 0
+                    self.E_bat_segment = self.E_bat_segment + delta_E_segment
+                    self.P_grid_excess_segment = P_grid2home - self.P_pv_excess_total
+
+                elif self.P_pv_excess_total < P_grid2home:
+                    # DIFFERENZ BERECHNEN
+                    self.P_bat_segment = P_grid2home - self.P_pv_excess_total
+                    delta_E_segment = (-self.P_bat_segment/3600) * BSS.efficiency
+                    self.E_bat_segment = self.E_bat_segment + delta_E_segment
+                    self.P_grid_excess_segment = self.P_pv_excess_total + self.P_bat_segment
+
+            elif self.E_bat_segment <= self.E_bat_min_segment:
+                'BSS segment is empty'
+                if self.P_pv_excess_total >= P_grid2home:
+                    P_PV2BSS = self.P_pv_excess_total - P_grid2home
+                    self.P_bat_segment = -P_PV2BSS
+                    delta_E_segment = (-self.P_bat_segment/3600) * BSS.efficiency
+                    self.E_bat_segment = self.E_bat_segment + delta_E_segment
+                    self.P_grid_excess_segment = P_grid2home
+
+                elif self.P_pv_excess_total < P_grid2home:
+                    self.P_bat_segment = 0
+                    delta_E_segment = 0
+                    self.E_bat_segment = self.E_bat_segment + delta_E_segment
+                    self.P_grid_excess_segment = self.P_pv_excess_total
+
+            else:
+                'Normalbetrieb'
+                if self.P_pv_excess_total >= P_grid2home:
+                    P_PV2BSS = self.P_pv_excess_total - P_grid2home
+                    self.P_bat_segment = -P_PV2BSS
+                    delta_E_segment = (-self.P_bat_segment/3600) * BSS.efficiency
+                    self.E_bat_segment = self.E_bat_segment + delta_E_segment
+                    self.P_grid_excess_segment = P_grid2home
+
+                elif self.P_pv_excess_total < P_grid2home:
+                    self.P_bat_segment = P_grid2home - self.P_pv_excess_total
+                    delta_E_segment = (-self.P_bat_segment/3600) * BSS.efficiency
+                    self.E_bat_segment = self.E_bat_segment + delta_E_segment
+                    self.P_grid_excess_segment = self.P_pv_excess_total + self.P_bat_segment
+
+
+        P_grid_real = sum(WE.P_Netz_v for WE in Wohneinheiten)          # P_grid_real - Tatsächlicher Netzbezug (abzüglich PV-Überschussscheibe)
+        P_grid_sum = P_grid_real                                        # P_grid_sum - Theoretisch notwendiger NetzBEZUG!
+
+        if self.P_pv_excess_total >= P_grid_real:
+            P_grid_real = 0
+        elif self.P_pv_excess_total < P_grid_real:
+            P_grid_real = P_grid_real - self.P_grid_excess_segment
 
     def run(self):
         while True:
-            PV_excess.calc_pv_excess()
-            PV_excess.calc_P_grid()
+            # print('E_bat_segment_max =', self.E_bat_max_segment, 'P_bat_segment_max =',self.P_bat_max_segment)
+            Provider_segment.calc_pv_excess()
+            Provider_segment.calc_bss_segment()
+            Provider_segment.strategy_segment()
             time.sleep(1)
 
-        # ANMKERUNG: Überschuss evtl. in methode BSS_virtuell aufrufen, um Verzögerungen zu mindern!!!
-        # Hier wäre dann nur die Strategie einzustellen
 
 class MomentanwertDB(Thread):
     def __init__(self):
@@ -259,6 +341,8 @@ class MomentanwertDB(Thread):
         global P_pv_sum
         global P_Wallbox_sum
         global Timestamp
+        global P_grid_real
+        global P_grid_sum
         path = 'MomentanwertDB.db'
         timestamp = datetime.now(timezone.utc)
         local_time= timestamp.astimezone(pytz.timezone('Europe/Berlin'))
@@ -267,17 +351,17 @@ class MomentanwertDB(Thread):
         P_load_sum = round(sum(WE.P_load_v for WE in Wohneinheiten),1)
         P_pv_sum = round(sum(WE.P_pv_v for WE in Wohneinheiten),1)
         P_Wallbox_sum = round(sum(WE.P_Wallbox for WE in Wohneinheiten))
-        P_grid_real = round(sum(WE.P_Netz_v for WE in Wohneinheiten),1)     # P_grid_real - Tatsächlicher Netzbezug (abzüglich PV-Überschussscheibe)
-        P_grid_sum = P_grid_real                                            # P_grid_sum - Theoretisch notwendiger NetzBEZUG!
-
-        if PV_excess.P_pv_excess_total >= P_grid_real:
-            P_grid_real = 0
-        elif PV_excess.P_pv_excess_total < P_grid_real:
-            P_grid_real = P_grid_real - PV_excess.P_grid_excess_segment
+        # P_grid_real = sum(WE.P_Netz_v for WE in Wohneinheiten)          # P_grid_real - Tatsächlicher Netzbezug (abzüglich PV-Überschussscheibe)
+        # P_grid_sum = P_grid_real                                        # P_grid_sum - Theoretisch notwendiger NetzBEZUG!
+        #
+        # if Provider_segment.P_pv_excess_total >= P_grid_real:
+        #     P_grid_real = 0
+        # elif Provider_segment.P_pv_excess_total < P_grid_real:
+        #     P_grid_real = P_grid_real - Provider_segment.P_grid_excess_segment
 
         value_list = [
                     (Timestamp,'Geraetewerte',round(BSS.E_bat_device,2),BSS.SoC,BSS.P_BSS_device,P_load_sum, P_Wallbox_sum,P_pv_sum, round(P_grid_real,2)),
-                    (Timestamp,'Rechenwerte', round(WE1.E_bat_sum,2), BSS.SoC, WE1.P_BSS_sum, P_load_sum, P_Wallbox_sum, P_pv_sum, round(P_grid_sum,2)),
+                    (Timestamp,'Rechenwerte', round(E_bat_sum,2), BSS.SoC, P_BSS_sum, P_load_sum, P_Wallbox_sum, P_pv_sum, round(P_grid_sum,2)),
                     (Timestamp,WE1.Wohneinheit, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_usage, round(WE1.P_Netz_v,2)),
                     (Timestamp,WE2.Wohneinheit, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_usage, round(WE2.P_Netz_v,2)),
                     (Timestamp,WE3.Wohneinheit, round(WE3.E_bat_v,2), WE3.SoC_v, WE3.P_bat_v, WE3.P_load_v, WE3.P_Wallbox, WE3.P_pv_usage, round(WE3.P_Netz_v,2)),
@@ -302,7 +386,8 @@ class MomentanwertDB(Thread):
                     (Timestamp,WE22.Wohneinheit,round(WE22.E_bat_v,2),WE22.SoC_v,WE22.P_bat_v,WE22.P_load_v,WE22.P_Wallbox,WE22.P_pv_usage, round(WE22.P_Netz_v,2)),
                     (Timestamp,WE23.Wohneinheit,round(WE23.E_bat_v,2),WE23.SoC_v,WE23.P_bat_v,WE23.P_load_v,WE23.P_Wallbox,WE23.P_pv_usage, round(WE23.P_Netz_v,2)),
                     (Timestamp,WE24.Wohneinheit,round(WE24.E_bat_v,2),WE24.SoC_v,WE24.P_bat_v,WE24.P_load_v,WE24.P_Wallbox,WE24.P_pv_usage, round(WE24.P_Netz_v,2)),
-                    (Timestamp,'PV-Segment',0,0,0,0,0,round(PV_excess.P_pv_excess_total,2), round(PV_excess.P_grid_excess_segment, 2))
+                    (Timestamp,'Zusatzsegment',round(Provider_segment.E_bat_segment,2),round(Provider_segment.SoC_Segment,2),round(Provider_segment.P_bat_segment,2),
+                     0,0,round(Provider_segment.P_pv_excess_total,2), round(Provider_segment.P_grid_excess_segment, 2))
                       ]
         conSQ = sqlite3.connect(path)
         curSQ = conSQ.cursor()
@@ -348,6 +433,9 @@ class ZeitreihenDB(Thread):
 
         path2 = path + '/data_' + csv_name + '.db'
 
+        Device_list = [Timestamp, round(BSS.E_bat_device,2), BSS.SoC, BSS.P_BSS_device, P_load_sum, P_Wallbox_sum, P_pv_sum, P_grid_real]
+        Calc_sum_list = [Timestamp, E_bat_sum, BSS.SoC, P_BSS_sum, P_load_sum, P_Wallbox_sum, P_pv_sum, P_grid_sum]
+
         csv_list_we1 = [Timestamp, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_v, round(WE1.P_Netz_v,2)]
         csv_list_we2 = [Timestamp, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_v, round(WE2.P_Netz_v,2)]
         csv_list_we3 = [Timestamp, round(WE3.E_bat_v,2), WE3.SoC_v, WE3.P_bat_v, WE3.P_load_v, WE3.P_Wallbox, WE3.P_pv_v, round(WE3.P_Netz_v,2)]
@@ -380,22 +468,38 @@ class ZeitreihenDB(Thread):
         WE_list = [csv_list_we1,csv_list_we2,csv_list_we3,csv_list_we4,csv_list_we5,csv_list_we6,csv_list_we7,csv_list_we8,csv_list_we9,csv_list_we10,
                    csv_list_we11,csv_list_we12,csv_list_we13,csv_list_we14,csv_list_we15,csv_list_we16,csv_list_we17,csv_list_we18,csv_list_we19,csv_list_we20,csv_list_we21,csv_list_we22,csv_list_we23,csv_list_we24]
 
-        #Idee: Wohneinheiten einzeln rausnehmen können!
         for i in range(24):
             cursorSQ.execute(f"CREATE TABLE IF NOT EXISTS WE{i+1}_sim1 "
                              "(Timestamp text PRIMARY KEY ,E_Bat real, SoC real,P_BSS real,P_Last real, P_Wallbox real, P_pv real,P_Netz real)")
         for i in range(24):
             cursorSQ.execute(f"INSERT OR IGNORE INTO WE{i+1}_sim1 "
                              "(Timestamp ,E_Bat, SoC,P_BSS,P_Last, P_Wallbox, P_pv,P_Netz) VALUES (?,?,?,?,?,?,?,?)",(WE_list[i]))
-        for i in range(24):
-            connectSQ.commit()
-            for row in cursorSQ.execute(f"SELECT * FROM WE{i+1}_sim1"):
-                row
+        # for i in range(24):
+        #     connectSQ.commit()
+        #     for row in cursorSQ.execute(f"SELECT * FROM WE{i+1}_sim1"):
+        #         row
+
+
+        cursorSQ.execute("CREATE TABLE IF NOT EXISTS Geraetewerte"
+                         "(Timestamp text PRIMARY KEY ,E_Bat real, SoC real,P_BSS real,P_Last real, P_Wallbox real, P_pv real,P_Netz real)")
+        cursorSQ.execute("INSERT OR IGNORE INTO Geraetewerte"
+                         "(Timestamp ,E_Bat, SoC,P_BSS,P_Last, P_Wallbox, P_pv,P_Netz) VALUES (?,?,?,?,?,?,?,?)",
+                         (Device_list))
+
+        cursorSQ.execute("CREATE TABLE IF NOT EXISTS Rechenwerte"
+                         "(Timestamp text PRIMARY KEY ,E_Bat real, SoC real,P_BSS real,P_Last real, P_Wallbox real, P_pv real,P_Netz real)")
+        cursorSQ.execute("INSERT OR IGNORE INTO Rechenwerte"
+                         "(Timestamp ,E_Bat, SoC,P_BSS,P_Last, P_Wallbox, P_pv,P_Netz) VALUES (?,?,?,?,?,?,?,?)",
+                         (Calc_sum_list))
+
+        connectSQ.commit()
+
 
     def run(self):
         while True:
             time.sleep(0.49)
             Zeitreihe.CSV_Daten()
+
 class Handelstabelle(Thread):
     def __init__(self):
         super().__init__()
@@ -494,10 +598,8 @@ class BSS_virtuell(Thread):
         self.Wohneinheit = Wohneinheit
         self.P_bat_v = 0
         self.E_bat_v = (BSS.E_bat_device/24)
-        self.E_bat_v_max = (BSS.E_bat_max/24) # == 2791.67
+        self.E_bat_v_max = (BSS.E_bat_max/24) # = 2791.67
         self.E_bat_v_min = 139.5
-        self.E_bat_sum = 35000 # initial value
-        self.P_BSS_sum = 0
         self.P_bat_v_max = 2700
         self.dE_v = 0
         self.P_load_v = 0
@@ -513,7 +615,7 @@ class BSS_virtuell(Thread):
         self.countWE = 0
         self.Participation_status = 1
         self.Melani_NTn_count = 0
-        self.Selbstentladung_v = (BSS.Selbstentladung/(24-NTn_count_sum))
+        self.self_discharge_v = (BSS.Selbstentladung / (24 - NTn_count_sum))
 
     def set_SOP(self):
 
@@ -540,9 +642,10 @@ class BSS_virtuell(Thread):
         self.P_pv_v = round(self.P_pv_v,2) # Macht nichts außer Wert zu runden -> Achtung, später nur für Anzeige in DB runden, Rechnungswerte werden verfälscht!
 
     def calc_parameters(self):
+        self.self_discharge_v = (BSS.Selbstentladung / (24 - NTn_count_sum))
         self.P_Residual_phy = P_load_sum + P_Wallbox_sum - P_pv_sum
         self.P_Residual_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
-        self.E_bat_v = self.E_bat_v - self.Selbstentladung_v
+        self.E_bat_v = self.E_bat_v - self.self_discharge_v
         self.dE_v = (-self.P_load_v - self.P_Wallbox + self.P_pv_v) * (1/3600) * BSS.efficiency
         self.SoC_v = round(((self.E_bat_v/self.E_bat_v_max)*100),1)
 
@@ -573,10 +676,11 @@ class BSS_virtuell(Thread):
 
         else:
             'Normalbetrieb: PV-Überschussladen'
+            self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)  # bei PV-Überschuss negativer Wert -> Speicher laden!
+            self.dE_v = (-self.P_bat_v/3600) * BSS.efficiency
             self.E_bat_v = self.E_bat_v + self.dE_v
             self.P_pv_usage = self.P_pv_v
             self.P_pv_feedin = 0
-            self.P_bat_v = round(self.P_load_v + self.P_Wallbox - self.P_pv_v,2)       # bei PV-Überschuss negativer Wert -> Speicher laden!
             self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v # PV-Überschuss und Ladeleistung BSS gleichen sich im Normalbetrieb aus
 
 
@@ -657,7 +761,7 @@ class BSS_virtuell(Thread):
                 self.countWE = 1
                 countWE_sum = sum(WE.countWE for WE in Wohneinheiten)
                 #print('count =',countWE_sum)
-                P_AbzugsleistungProWE = (P_BSS_Mehrbedarf / countWE_sum) * 1.15  # 1.15 als Sicherheitsfaktor
+                P_AbzugsleistungProWE = (P_BSS_Mehrbedarf / countWE_sum) * 1.3  # 1.15 als Sicherheitsfaktor
                 self.P_pv_usage = self.P_pv_v
                 self.P_pv_feedin = 0
 
@@ -670,10 +774,20 @@ class BSS_virtuell(Thread):
             self.E_bat_v = self.E_bat_v + self.dE_v
             self.P_Netz_v = self.P_load_v + self.P_Wallbox - self.P_pv_v - self.P_bat_v
 
+    def switch_participation_status(self):
+        if self.E_bat_v > 0:
+            E_switch = 0
+        else:
+            E_switch = Provider_segment.E_bat_segment/NTn_count_sum
+
+        self.E_bat_v = self.E_bat_v + E_switch
+        Provider_segment.E_bat_segment = Provider_segment.E_bat_segment - E_switch
+
+
     def set_NTn_parameters(self):
         #print(self.Wohneinheit, 'status = ', self.Participation_status)
-        #self.E_bat_v = 0
-        #self.E_bat_v = self.E_bat_v + self.Selbstentladung_v
+        Provider_segment.E_bat_segment = Provider_segment.E_bat_segment + self.E_bat_v
+        self.E_bat_v = 0
         self.P_bat_v = 0
         self.SoC_v = 0 # round(((self.E_bat_v / self.E_bat_v_max) * 100), 1)
         self.P_pv_v = 0
@@ -685,8 +799,7 @@ class BSS_virtuell(Thread):
 
     def run(self):  # AUFRUF DER BETRIEBSSTRATEGIE
         'STRATEGIEAUFRUF !!!'
-        global P_res_v_emptyWE_sum
-        global P_EV_v_emptyWE_sum
+        global P_res_v_emptyWE_sum, E_bat_sum, P_BSS_sum, P_EV_v_emptyWE_sum
         while True:
             try:
                 P_res_v_emptyWE_sum = []
@@ -699,6 +812,8 @@ class BSS_virtuell(Thread):
                 for WE in Wohneinheiten:
                     if WE.Participation_status == 0:
                         WE.set_NTn_parameters()
+                    elif WE.Participation_status == 0.5:
+                        WE.switch_participation_status()
                     else:
                         WE.set_SOP()            # Setzt aktuellen SOP / Multiplikationsfaktor
                         WE.calc_parameters()    # Bestimme virtuellen Speicherstand etc.
@@ -714,11 +829,10 @@ class BSS_virtuell(Thread):
                             #print('Strategie: PV-Überschussladen')
                             WE.strategy_ueberschussladen()
 
+                P_BSS_sum = round(sum(WE.P_bat_v for WE in Wohneinheiten) + Provider_segment.P_bat_segment,2)
+                E_bat_sum = round(sum(WE.E_bat_v for WE in Wohneinheiten) + Provider_segment.E_bat_segment,2)
 
-                self.P_BSS_sum = round(sum(WE.P_bat_v for WE in Wohneinheiten),1)
-                self.E_bat_sum = round(sum(WE.E_bat_v for WE in Wohneinheiten),1)
-
-                print('Simulierter Zeitstempel -->',Timestamp_sim,'--> P_pv =',P_pv_sum,'W')
+                # print('Simulierter Zeitstempel -->',Timestamp_sim,'--> P_pv =',P_pv_sum,'W')
 
             except NameError as err:
                 print('NameError --->',str(err))
@@ -727,7 +841,7 @@ class BSS_virtuell(Thread):
 
 EV = EV_charging_dummy()
 Participation = Melani_Participation()
-PV_excess = PV_excess_segment()
+Provider_segment = Added_segment()
 BSS = BSS_dummy()
 PV = PV_dummy()
 Last = Last_dummy()
@@ -763,6 +877,6 @@ WE24 = BSS_virtuell('WE24')
 Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
                  WE13, WE14, WE15, WE16, WE17, WE18, WE19, WE20, WE21, WE22, WE23,WE24]
 
-concurrentthreads = [Participation,PV,Last,EV,BSS,Momentanwerte,WE1,Handel,PV_excess] #,Zeitreihe],
+concurrentthreads = [Participation,PV,Last,EV,BSS,Momentanwerte,WE1,Handel,Provider_segment] # ,Zeitreihe
 for threads in concurrentthreads:
     threads.start()
