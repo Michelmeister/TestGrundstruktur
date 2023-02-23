@@ -187,7 +187,7 @@ class EV_charging_dummy(Thread):
 class BSS_dummy(Thread):
     def __init__(self):
         super().__init__()
-        self.E_bat_device = 30000 # Wh
+        self.E_bat_device = 60000 # Wh
         self.P_BSS_device = 0 # W # Sollwert für physikalische Lade-/Entladeleistung
         self.delta_E = 0
 
@@ -236,23 +236,40 @@ class Added_segment(Thread):
         self.P_pv_excess_total = (P_pv * (NTn_count_sum/24)) + P_pv_feedin_sum
         # print('P_pv_excess_total =',self.P_pv_excess_total,'W')
 
-    def calc_bss_segment(self):
-        if NTn_count_sum == 0:
-            self.E_bat_segment = 0
+    def strategy_pv_excess(self):
+        global counting
+        global P_grid_real, P_grid_sum
+        self.P_bat_segment  = 0
+        self.E_bat_segment  = 0
+        self.SoC_Segment    = 0
+        P_grid2home = sum(WE.P_Netz_v for WE in Wohneinheiten)
 
+        if self.P_pv_excess_total <= P_grid2home:
+            self.P_grid_excess_segment = self.P_pv_excess_total
+        elif self.P_pv_excess_total > P_grid2home:
+            self.P_grid_excess_segment = P_grid2home - self.P_pv_excess_total
+
+        P_grid_real = sum(WE.P_Netz_v for WE in Wohneinheiten)          # P_grid_real - Tatsächlicher Netzbezug (abzüglich PV-Überschussscheibe)
+        P_grid_sum = P_grid_real                                        # P_grid_sum - Theoretisch notwendiger NetzBEZUG!
+
+        if self.P_pv_excess_total >= P_grid_real:
+            P_grid_real = 0
+        elif self.P_pv_excess_total < P_grid_real:
+            P_grid_real = P_grid_real - self.P_grid_excess_segment
+
+
+    def calc_bss_segment(self):
         self.E_bat_max_segment = NTn_count_sum * WE1.E_bat_v_max
         self.P_bat_max_segment = NTn_count_sum * WE1.P_bat_v_max
         self.E_bat_min_segment = 0.05 * self.E_bat_max_segment
-        try:
-            self.SoC_Segment = (self.E_bat_segment/self.E_bat_max_segment) * 100
-        except ZeroDivisionError:
-            self.SoC_Segment = 0
+        self.SoC_Segment = (self.E_bat_segment/self.E_bat_max_segment) * 100
 
-    def strategy_segment(self):
+    def strategy_bss_segment(self):
         global P_grid_real, P_grid_sum
         P_grid2home = sum(WE.P_Netz_v for WE in Wohneinheiten)
         self_discharge = WE1.self_discharge_v * NTn_count_sum
         self.E_bat_segment = self.E_bat_segment - self_discharge
+
         if self.P_pv_excess_total >= P_grid2home:
             P_bat_demand = 0
         else:
@@ -325,13 +342,15 @@ class Added_segment(Thread):
 
     def run(self):
         while True:
-            # print('E_bat_segment_max =', self.E_bat_max_segment, 'P_bat_segment_max =',self.P_bat_max_segment)
             Provider_segment.calc_pv_excess()
-            Provider_segment.calc_bss_segment()
-            Provider_segment.strategy_segment()
+
+            if NTn_count_sum == 0:
+                Provider_segment.strategy_pv_excess()
+            else:
+                Provider_segment.calc_bss_segment()
+                Provider_segment.strategy_bss_segment()
+
             time.sleep(1)
-
-
 class MomentanwertDB(Thread):
     def __init__(self):
         super().__init__()
@@ -396,8 +415,8 @@ class MomentanwertDB(Thread):
         curSQ.executemany("INSERT OR REPLACE INTO Tabelle1 "
                           "(Timestamp, Name, E_BSS, SoC,P_BSS, P_Last, P_Wallbox,P_PV_Nutz, P_Netz) VALUES (?,?,?,?,?,?,?,?,?)",(value_list))
         conSQ.commit()
-        for row in curSQ.execute("SELECT * FROM Tabelle1"):
-            row
+        # for row in curSQ.execute("SELECT * FROM Tabelle1"):
+        #     row
 
     def run(self):
         while True:
@@ -510,36 +529,90 @@ class Handelstabelle(Thread):
         cc.execute('SELECT * FROM MarktTabelle')
         value = cc.fetchall()
 
-        WE1.PV_Handelsstatus = value[1][1]
-        WE2.PV_Handelsstatus = value[2][1]
-        WE3.PV_Handelsstatus = value[3][1]
-        WE4.PV_Handelsstatus = value[4][1]
-        WE5.PV_Handelsstatus = value[5][1]
-        WE6.PV_Handelsstatus = value[6][1]
-        WE7.PV_Handelsstatus = value[7][1]
-        WE8.PV_Handelsstatus = value[8][1]
-        WE9.PV_Handelsstatus = value[9][1]
-        WE10.PV_Handelsstatus = value[10][1]
-        WE11.PV_Handelsstatus = value[11][1]
-        WE12.PV_Handelsstatus = value[12][1]
-        WE13.PV_Handelsstatus = value[13][1]
-        WE14.PV_Handelsstatus = value[14][1]
-        WE15.PV_Handelsstatus = value[15][1]
-        WE16.PV_Handelsstatus = value[16][1]
-        WE17.PV_Handelsstatus = value[17][1]
-        WE18.PV_Handelsstatus = value[18][1]
-        WE19.PV_Handelsstatus = value[19][1]
-        WE20.PV_Handelsstatus = value[20][1]
-        WE21.PV_Handelsstatus = value[21][1]
-        WE22.PV_Handelsstatus = value[22][1]
-        WE23.PV_Handelsstatus = value[23][1]
-        WE24.PV_Handelsstatus = value[24][1]
+        # Read SOP_PV
+        WE1.SOP_PV = value[1][1]
+        WE2.SOP_PV = value[2][1]
+        WE3.SOP_PV = value[3][1]
+        WE4.SOP_PV = value[4][1]
+        WE5.SOP_PV = value[5][1]
+        WE6.SOP_PV = value[6][1]
+        WE7.SOP_PV = value[7][1]
+        WE8.SOP_PV = value[8][1]
+        WE9.SOP_PV = value[9][1]
+        WE10.SOP_PV = value[10][1]
+        WE11.SOP_PV = value[11][1]
+        WE12.SOP_PV = value[12][1]
+        WE13.SOP_PV = value[13][1]
+        WE14.SOP_PV = value[14][1]
+        WE15.SOP_PV = value[15][1]
+        WE16.SOP_PV = value[16][1]
+        WE17.SOP_PV = value[17][1]
+        WE18.SOP_PV = value[18][1]
+        WE19.SOP_PV = value[19][1]
+        WE20.SOP_PV = value[20][1]
+        WE21.SOP_PV = value[21][1]
+        WE22.SOP_PV = value[22][1]
+        WE23.SOP_PV = value[23][1]
+        WE24.SOP_PV = value[24][1]
+
+        # Read SOP_BSS
+        WE1.SOP_BSS = value[1][2]
+        WE2.SOP_BSS = value[2][2]
+        WE3.SOP_BSS = value[3][2]
+        WE4.SOP_BSS = value[4][2]
+        WE5.SOP_BSS = value[5][2]
+        WE6.SOP_BSS = value[6][2]
+        WE7.SOP_BSS = value[7][2]
+        WE8.SOP_BSS = value[8][2]
+        WE9.SOP_BSS = value[9][2]
+        WE10.SOP_BSS = value[10][2]
+        WE11.SOP_BSS = value[11][2]
+        WE12.SOP_BSS = value[12][2]
+        WE13.SOP_BSS = value[13][2]
+        WE14.SOP_BSS = value[14][2]
+        WE15.SOP_BSS = value[15][2]
+        WE16.SOP_BSS = value[16][2]
+        WE17.SOP_BSS = value[17][2]
+        WE18.SOP_BSS = value[18][2]
+        WE19.SOP_BSS = value[19][2]
+        WE20.SOP_BSS = value[20][2]
+        WE21.SOP_BSS = value[21][2]
+        WE22.SOP_BSS = value[22][2]
+        WE23.SOP_BSS = value[23][2]
+        WE24.SOP_BSS = value[24][2]
+
+        # Read Selling_BSS_to
+        WE1.Selling_BSS_to = value[1][3]
+        WE2.Selling_BSS_to = value[2][3]
+        WE3.Selling_BSS_to = value[3][3]
+        WE4.Selling_BSS_to = value[4][3]
+        WE5.Selling_BSS_to = value[5][3]
+        WE6.Selling_BSS_to = value[6][3]
+        WE7.Selling_BSS_to = value[7][3]
+        WE8.Selling_BSS_to = value[8][3]
+        WE9.Selling_BSS_to = value[9][3]
+        WE10.Selling_BSS_to = value[10][3]
+        WE11.Selling_BSS_to = value[11][3]
+        WE12.Selling_BSS_to = value[12][3]
+        WE13.Selling_BSS_to = value[13][3]
+        WE14.Selling_BSS_to = value[14][3]
+        WE15.Selling_BSS_to = value[15][3]
+        WE16.Selling_BSS_to = value[16][3]
+        WE17.Selling_BSS_to = value[17][3]
+        WE18.Selling_BSS_to = value[18][3]
+        WE19.Selling_BSS_to = value[19][3]
+        WE20.Selling_BSS_to = value[20][3]
+        WE21.Selling_BSS_to = value[21][3]
+        WE22.Selling_BSS_to = value[22][3]
+        WE23.Selling_BSS_to = value[23][3]
+        WE24.Selling_BSS_to = value[24][3]
 
     def run(self):
         while True:
             time.sleep(0.9)
             Handel.read_Handelsstatus()
-            #print(WE4.PV_Handelsstatus)
+            # print(WE4.PV_Handelsstatus)
+            # print(WE21.Wohneinheit,WE21.Selling_BSS_to)
 class Melani_Participation(Thread):
     def __init__(self):
         super().__init__()
@@ -599,7 +672,7 @@ class BSS_virtuell(Thread):
         self.P_bat_v = 0
         self.E_bat_v = (BSS.E_bat_device/24)
         self.E_bat_v_max = (BSS.E_bat_max/24) # = 2791.67
-        self.E_bat_v_min = 139.5
+        self.E_bat_v_min = 0.05 * self.E_bat_v_max
         self.P_bat_v_max = 2700
         self.dE_v = 0
         self.P_load_v = 0
@@ -609,47 +682,92 @@ class BSS_virtuell(Thread):
         self.P_pv_v = 0
         self.P_pv_usage = 0
         self.P_pv_feedin = 0
-        self.PV_Handelsstatus = 0
+        self.SOP_PV = 1
+        self.SOP_BSS = 1
         self.P_Residual_phy = 0
         self.P_Residual_v = 0
         self.countWE = 0
         self.Participation_status = 1
         self.Melani_NTn_count = 0
         self.self_discharge_v = (BSS.Selbstentladung / (24 - NTn_count_sum))
+        self.E_trading_surplus = 0
+        self.Selling_BSS_to = 0
 
-    def set_SOP(self):
-
-        if self.PV_Handelsstatus == '0':
-            self.P_pv_v = 0
-        elif self.PV_Handelsstatus == '2':
-            self.P_pv_v = P_pv * (2/24)
-        elif self.PV_Handelsstatus == '3':
-            self.P_pv_v = P_pv * (3/24)
-        elif self.PV_Handelsstatus == '4':
-            self.P_pv_v = P_pv * (4/24)
-        elif self.PV_Handelsstatus == '5':
-            self.P_pv_v = P_pv * (5/24)
-        elif self.PV_Handelsstatus == '6':
-            self.P_pv_v = P_pv * (6/24)
-        elif self.PV_Handelsstatus == '7':
-            self.P_pv_v = P_pv * (7/24)
-        elif self.PV_Handelsstatus == '8':
-            self.P_pv_v = P_pv * (8/24)
-        else:
-            self.P_pv_v = P_pv * (1/24)
-            # == 1
+    def set_SOP_PV(self):
+        SOP_PV_WEi = float(self.SOP_PV)
+        self.P_pv_v = P_pv * (SOP_PV_WEi / 24)
 
         self.P_pv_v = round(self.P_pv_v,2) # Macht nichts außer Wert zu runden -> Achtung, später nur für Anzeige in DB runden, Rechnungswerte werden verfälscht!
+
+    def set_SOP_BSS(self):
+        SOP_BSS_WEi = float(self.SOP_BSS)
+        if self.SOP_BSS < 1:
+            'Selling unit'
+            self.E_bat_v_max = BSS.E_bat_max * (SOP_BSS_WEi/24) + 0.0001   # +0.0001 -> otherwise E_bat_max = E_bat_min when SOP = 0
+            self.E_bat_v_min = 0.05 * self.E_bat_v_max
+            self.P_bat_v_max = BSS.P_BSS_discharge_max * (SOP_BSS_WEi/24)
+            E_difference = self.E_bat_v - self.E_bat_v_max
+
+            if E_difference > 0:
+                # note to myself: As soon as the E_trading_surplus is transmitted, E_difference becomes <= 0
+                # which ensures, that this loop is only running 1 time!
+                self.E_trading_surplus = self.E_trading_surplus + E_difference
+                self.E_bat_v = self.E_bat_v - self.E_trading_surplus
+            elif E_difference <= 0:
+                self.E_trading_surplus = 0
+
+
+        elif self.SOP_BSS > 1:
+            'Buying unit'
+            self.E_bat_v_max = BSS.E_bat_max * (SOP_BSS_WEi/24)
+            self.E_bat_v_min = 0.05 * self.E_bat_v_max
+            self.P_bat_v_max = BSS.P_BSS_discharge_max * (SOP_BSS_WEi/24)
+            for WE in Wohneinheiten:
+                if WE.Selling_BSS_to == self.Wohneinheit:
+                    self.E_bat_v = self.E_bat_v + WE.E_trading_surplus
+                    WE.E_trading_surplus = 0
+
+
+        elif self.SOP_BSS == 1:
+            self.E_bat_v_max = BSS.E_bat_max * (SOP_BSS_WEi/24)
+            self.E_bat_v_min = 0.05 * self.E_bat_v_max
+            self.P_bat_v_max = BSS.P_BSS_discharge_max * (SOP_BSS_WEi/24)
+
+
+            if self.E_bat_v > self.E_bat_v_max:
+                'Transfer of energy-surplus after trading'
+                try:
+                    E_diff = self.E_bat_v - self.E_bat_v_max
+                    # print(self.Wohneinheit,'E_diff =',E_diff)
+                    for WE in Wohneinheiten:
+                        if WE.E_bat_v < 0.04 * WE.E_bat_v_max: # Usual housing units will never be lower (conservation charging)
+                            # FAAAALSCH, kann muss ja nicht unbedingt leer sein die Wohneinheit nach Handel!!!!!!!
+                            # WENN NUR EIN TEIL GEHANDELT WURDE, BRAUCHE ICH NOCH EINE MÖGLICHKEIT DENN ÜBERSCHUSSTEIL EINER
+                            # WE ZUZUORDNEN, WELCHE DEN ÜBERSCHUSS GUTGESCHRIEBEN BEKOMMEN SOLL
+                            WE.E_bat_v = WE.E_bat_v + E_diff
+                            self.E_bat_v = self.E_bat_v - E_diff
+                except Exception as err:
+                    print('There is an Error --->',str(err))
+
+
+
+
 
     def calc_parameters(self):
         self.self_discharge_v = (BSS.Selbstentladung / (24 - NTn_count_sum))
         self.P_Residual_phy = P_load_sum + P_Wallbox_sum - P_pv_sum
         self.P_Residual_v = self.P_load_v + self.P_Wallbox - self.P_pv_v
-        self.E_bat_v = self.E_bat_v - self.self_discharge_v
         self.dE_v = (-self.P_load_v - self.P_Wallbox + self.P_pv_v) * (1/3600) * BSS.efficiency
-        self.SoC_v = round(((self.E_bat_v/self.E_bat_v_max)*100),1)
+        if self.SOP_BSS > 0:
+            self.E_bat_v = self.E_bat_v - self.self_discharge_v
+
+        try:
+            self.SoC_v = round(((self.E_bat_v/self.E_bat_v_max)*100),1)
+        except ZeroDivisionError:
+            self.SoC_v = 0
 
     def strategy_ueberschussladen(self):
+
         if self.E_bat_v <= self.E_bat_v_min:
             'Entladegrenze virtuell -> SoC = 5%'
             #Konfiguration:  PV-Leistung geht auch bei SoC = 5% erst in die Lastabdeckung, dann in BSS-Ladung
@@ -815,7 +933,8 @@ class BSS_virtuell(Thread):
                     elif WE.Participation_status == 0.5:
                         WE.switch_participation_status()
                     else:
-                        WE.set_SOP()            # Setzt aktuellen SOP / Multiplikationsfaktor
+                        WE.set_SOP_PV()            # Setzt aktuellen SOP / Multiplikationsfaktor
+                        WE.set_SOP_BSS()
                         WE.calc_parameters()    # Bestimme virtuellen Speicherstand etc.
 
                         if BSS.E_bat_device <= BSS.E_bat_min:
