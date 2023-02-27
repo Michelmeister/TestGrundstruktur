@@ -649,6 +649,7 @@ class Melani_Participation(Thread):
         WE23.Participation_status = value[23][1]
         WE24.Participation_status = value[24][1]
 
+
         for WE in Wohneinheiten:
             if WE.Participation_status == 1:
                 WE.Melani_NTn_count = 0
@@ -662,7 +663,7 @@ class Melani_Participation(Thread):
     def run(self):
         while True:
             Participation.read_Participation_status()
-            #print(WE1.Wohneinheit,'Participation_Status = ',WE1.Participation_status)
+            #print(WE3.Wohneinheit,'Participation_Status = ',WE3.Participation_status)
             time.sleep(1)
 
 class BSS_virtuell(Thread):
@@ -729,28 +730,33 @@ class BSS_virtuell(Thread):
 
 
         elif self.SOP_BSS == 1:
+            global count_trading_to_self
             self.E_bat_v_max = BSS.E_bat_max * (SOP_BSS_WEi/24)
             self.E_bat_v_min = 0.05 * self.E_bat_v_max
             self.P_bat_v_max = BSS.P_BSS_discharge_max * (SOP_BSS_WEi/24)
-
 
             if self.E_bat_v > self.E_bat_v_max:
                 'Transfer of energy-surplus after trading'
                 try:
                     E_diff = self.E_bat_v - self.E_bat_v_max
-                    # print(self.Wohneinheit,'E_diff =',E_diff)
+                    #print(self.Wohneinheit,'E_diff =',E_diff)
+
+                    count_trading_to_self = 0
                     for WE in Wohneinheiten:
-                        if WE.E_bat_v < 0.04 * WE.E_bat_v_max: # Usual housing units will never be lower (conservation charging)
-                            # FAAAALSCH, kann muss ja nicht unbedingt leer sein die Wohneinheit nach Handel!!!!!!!
-                            # WENN NUR EIN TEIL GEHANDELT WURDE, BRAUCHE ICH NOCH EINE MÖGLICHKEIT DENN ÜBERSCHUSSTEIL EINER
-                            # WE ZUZUORDNEN, WELCHE DEN ÜBERSCHUSS GUTGESCHRIEBEN BEKOMMEN SOLL
-                            WE.E_bat_v = WE.E_bat_v + E_diff
-                            self.E_bat_v = self.E_bat_v - E_diff
+                        if WE.Selling_BSS_to == self.Wohneinheit:
+                            'Achtung:'
+        # In der finalen DB steht die Info wer mit wem gehandelt hat an anderer Stelle!!!!!!!! und ist kein "Momentanwert"
+                            count_trading_to_self = count_trading_to_self + 1
+
+                    for WE in Wohneinheiten:
+                        if WE.Selling_BSS_to == self.Wohneinheit:
+        # In der finalen DB steht die Info wer mit wem gehandelt hat an anderer Stelle!!!!!!!! und ist kein "Momentanwert"
+                            WE.E_bat_v = WE.E_bat_v + (E_diff/count_trading_to_self)
+
+                    self.E_bat_v = self.E_bat_v - E_diff
+
                 except Exception as err:
                     print('There is an Error --->',str(err))
-
-
-
 
 
     def calc_parameters(self):
