@@ -183,7 +183,6 @@ class EV_charging_dummy(Thread):
             # WE21.P_Wallbox = round(P_EV_list[8] * 3) * 1000
             # WE22.P_Wallbox = round(P_EV_list[9] * 3) * 1000
             time.sleep(900)
-
 class BSS_dummy(Thread):
     def __init__(self):
         super().__init__()
@@ -216,7 +215,6 @@ class BSS_dummy(Thread):
             self.delta_E = (-self.P_BSS_device/3600) * self.efficiency
             self.E_bat_device = self.E_bat_device + self.delta_E
             self.SoC = round((self.E_bat_device/self.E_bat_max)*100,1)
-
 class Added_segment(Thread):
     def __init__(self):
         super().__init__()
@@ -518,6 +516,82 @@ class ZeitreihenDB(Thread):
         while True:
             time.sleep(0.49)
             Zeitreihe.CSV_Daten()
+class ZeitreihenDB_15min(Thread):
+    def __init__(self):
+        super().__init__()
+
+    def CSV_Daten_15min(self):
+
+        # Zeitstempel wird erstellt
+        time = datetime.now()
+        timestamp = datetime.now(timezone.utc)
+        local_time = timestamp.astimezone(pytz.timezone('Europe/Berlin'))
+        Timestamp = str(local_time.strftime('%d-%m-%Y %H:%M:%S UTC%z'))
+
+        # sucht nach Ordner des aktuellen Monats, falls nicht vorhanden, wird neuer Ordner erstellt
+        directory = 'ZeitreihenDB_15min'
+        try:
+            os.stat(directory)
+        except:
+            os.mkdir(directory)
+            # print('Neuer Ordner erstellt')
+
+        path = directory + '/data_15min.db'
+
+        value_list = [
+                    (Timestamp,WE1.Wohneinheit, round(WE1.E_bat_v,2), WE1.SoC_v, WE1.P_bat_v, WE1.P_load_v, WE1.P_Wallbox, WE1.P_pv_v, round(WE1.P_Netz_v,2)),
+                    (Timestamp,WE2.Wohneinheit, round(WE2.E_bat_v,2), WE2.SoC_v, WE2.P_bat_v, WE2.P_load_v, WE2.P_Wallbox, WE2.P_pv_v, round(WE2.P_Netz_v,2)),
+                    (Timestamp,WE3.Wohneinheit, round(WE3.E_bat_v,2), WE3.SoC_v, WE3.P_bat_v, WE3.P_load_v, WE3.P_Wallbox, WE3.P_pv_v, round(WE3.P_Netz_v,2)),
+                    (Timestamp,WE4.Wohneinheit, round(WE4.E_bat_v,2), WE4.SoC_v, WE4.P_bat_v, WE4.P_load_v, WE4.P_Wallbox, WE4.P_pv_v, round(WE4.P_Netz_v,2)),
+                    (Timestamp,WE5.Wohneinheit, round(WE5.E_bat_v,2), WE5.SoC_v, WE5.P_bat_v, WE5.P_load_v, WE5.P_Wallbox, WE5.P_pv_v, round(WE5.P_Netz_v,2)),
+                    (Timestamp,WE6.Wohneinheit, round(WE6.E_bat_v,2), WE6.SoC_v, WE6.P_bat_v, WE6.P_load_v, WE6.P_Wallbox, WE6.P_pv_v, round(WE6.P_Netz_v,2)),
+                    (Timestamp,WE7.Wohneinheit, round(WE7.E_bat_v,2), WE7.SoC_v, WE7.P_bat_v, WE7.P_load_v, WE7.P_Wallbox, WE7.P_pv_v, round(WE7.P_Netz_v,2)),
+                    (Timestamp,WE8.Wohneinheit, round(WE8.E_bat_v,2), WE8.SoC_v, WE8.P_bat_v, WE8.P_load_v, WE8.P_Wallbox, WE8.P_pv_v, round(WE8.P_Netz_v,2)),
+                    (Timestamp,WE9.Wohneinheit, round(WE9.E_bat_v,2), WE9.SoC_v, WE9.P_bat_v, WE9.P_load_v, WE9.P_Wallbox, WE9.P_pv_v, round(WE9.P_Netz_v,2)),
+                    (Timestamp,WE10.Wohneinheit,round(WE10.E_bat_v,2),WE10.SoC_v,WE10.P_bat_v,WE10.P_load_v,WE10.P_Wallbox,WE10.P_pv_v, round(WE10.P_Netz_v,2)),
+                    (Timestamp,WE11.Wohneinheit,round(WE11.E_bat_v,2),WE11.SoC_v,WE11.P_bat_v,WE11.P_load_v,WE11.P_Wallbox,WE11.P_pv_v, round(WE11.P_Netz_v,2)),
+                    (Timestamp,WE12.Wohneinheit,round(WE12.E_bat_v,2),WE12.SoC_v,WE12.P_bat_v,WE12.P_load_v,WE12.P_Wallbox,WE12.P_pv_v, round(WE12.P_Netz_v,2)),
+                    (Timestamp,WE13.Wohneinheit,round(WE13.E_bat_v,2),WE13.SoC_v,WE13.P_bat_v,WE13.P_load_v,WE13.P_Wallbox,WE13.P_pv_v, round(WE13.P_Netz_v,2)),
+                    (Timestamp,WE14.Wohneinheit,round(WE14.E_bat_v,2),WE14.SoC_v,WE14.P_bat_v,WE14.P_load_v,WE14.P_Wallbox,WE14.P_pv_v, round(WE14.P_Netz_v,2)),
+                    (Timestamp,WE15.Wohneinheit,round(WE15.E_bat_v,2),WE15.SoC_v,WE15.P_bat_v,WE15.P_load_v,WE15.P_Wallbox,WE15.P_pv_v, round(WE15.P_Netz_v,2)),
+                    (Timestamp,WE16.Wohneinheit,round(WE16.E_bat_v,2),WE16.SoC_v,WE16.P_bat_v,WE16.P_load_v,WE16.P_Wallbox,WE16.P_pv_v, round(WE16.P_Netz_v,2)),
+                    (Timestamp,WE17.Wohneinheit,round(WE17.E_bat_v,2),WE17.SoC_v,WE17.P_bat_v,WE17.P_load_v,WE17.P_Wallbox,WE17.P_pv_v, round(WE17.P_Netz_v,2)),
+                    (Timestamp,WE18.Wohneinheit,round(WE18.E_bat_v,2),WE18.SoC_v,WE18.P_bat_v,WE18.P_load_v,WE18.P_Wallbox,WE18.P_pv_v, round(WE18.P_Netz_v,2)),
+                    (Timestamp,WE19.Wohneinheit,round(WE19.E_bat_v,2),WE19.SoC_v,WE19.P_bat_v,WE19.P_load_v,WE19.P_Wallbox,WE19.P_pv_v, round(WE19.P_Netz_v,2)),
+                    (Timestamp,WE20.Wohneinheit,round(WE20.E_bat_v,2),WE20.SoC_v,WE20.P_bat_v,WE20.P_load_v,WE20.P_Wallbox,WE20.P_pv_v, round(WE20.P_Netz_v,2)),
+                    (Timestamp,WE21.Wohneinheit,round(WE21.E_bat_v,2),WE21.SoC_v,WE21.P_bat_v,WE21.P_load_v,WE21.P_Wallbox,WE21.P_pv_v, round(WE21.P_Netz_v,2)),
+                    (Timestamp,WE22.Wohneinheit,round(WE22.E_bat_v,2),WE22.SoC_v,WE22.P_bat_v,WE22.P_load_v,WE22.P_Wallbox,WE22.P_pv_v, round(WE22.P_Netz_v,2)),
+                    (Timestamp,WE23.Wohneinheit,round(WE23.E_bat_v,2),WE23.SoC_v,WE23.P_bat_v,WE23.P_load_v,WE23.P_Wallbox,WE23.P_pv_v, round(WE23.P_Netz_v,2)),
+                    (Timestamp,WE24.Wohneinheit,round(WE24.E_bat_v,2),WE24.SoC_v,WE24.P_bat_v,WE24.P_load_v,WE24.P_Wallbox,WE24.P_pv_v, round(WE24.P_Netz_v,2))
+                      ]
+
+        day = str(local_time.strftime('%d-%m-%Y %H'))
+        UTC = str(local_time.strftime('UTC%z'))
+        zeit_00 = day + ':00:00 ' + UTC
+        zeit_15 = day + ':15:00 ' + UTC
+        zeit_30 = day + ':30:00 ' + UTC
+        zeit_45 = day + ':45:00 ' + UTC
+
+        if zeit_00 == Timestamp or zeit_15 == Timestamp or zeit_30 == Timestamp or zeit_45 == Timestamp:
+            #print('Wert in data_15min schreiben.')
+
+            # SQlite-Datenbank wird erstellt
+            connectSQ = sqlite3.connect(path)
+            cursorSQ = connectSQ.cursor()
+            cursorSQ.execute(f"CREATE TABLE IF NOT EXISTS WE_alle "
+                             "(Timestamp text, WE text, E_Bat real, SoC real, P_BSS real, P_Last real, P_Wallbox real, P_pv real, P_Netz real)")
+
+            cursorSQ.executemany(f"INSERT INTO WE_alle "
+                                "(Timestamp, WE, E_Bat, SoC, P_BSS, P_Last, P_Wallbox, P_pv, P_Netz) VALUES (?,?,?,?,?,?,?,?,?)", (value_list))
+            connectSQ.commit()
+            for row in cursorSQ.execute(f"SELECT * FROM WE_alle"):
+                row
+
+
+    def run(self):
+        while True:
+            time.sleep(0.9)
+            Zeitreihe_15.CSV_Daten_15min()
 
 class Handelstabelle(Thread):
     def __init__(self):
@@ -972,6 +1046,7 @@ PV = PV_dummy()
 Last = Last_dummy()
 Momentanwerte = MomentanwertDB()
 Zeitreihe = ZeitreihenDB()
+Zeitreihe_15 = ZeitreihenDB_15min()
 Handel = Handelstabelle()
 
 
@@ -1002,6 +1077,6 @@ WE24 = BSS_virtuell('WE24')
 Wohneinheiten = [WE1, WE2, WE3, WE4, WE5, WE6, WE7, WE8, WE9, WE10, WE11, WE12,
                  WE13, WE14, WE15, WE16, WE17, WE18, WE19, WE20, WE21, WE22, WE23,WE24]
 
-concurrentthreads = [Participation,PV,Last,EV,BSS,Momentanwerte,WE1,Handel,Provider_segment] # ,Zeitreihe
+concurrentthreads = [Participation,PV,Last,EV,BSS,Momentanwerte,WE1,Handel,Provider_segment] # ,Zeitreihe, Zeitreihe_15
 for threads in concurrentthreads:
     threads.start()
